@@ -1,4 +1,4 @@
-module UI.Autoinput 
+module Autoinput 
   exposing 
     ( Model
     , Config
@@ -20,7 +20,7 @@ import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (on, onWithOptions, onInput, keyCode)
 
-import UI.Menu as Menu
+import Menu as Menu
 
 -- MODEL
 
@@ -66,14 +66,14 @@ type Msg id
   | UpdateMenu (Menu.Msg id)
   | NoOp
 
-update :  Config item -> Maybe id -> List (id, item) -> Msg id -> Model -> (Model, Maybe id)
-update { toString, search, howMany, menuConfig } selected items msg model =
+update :  Config item -> List (id, item) -> Maybe id -> Msg id -> Model -> (Model, Maybe id)
+update { toString, search, howMany } items selected msg model =
   let 
     filter query =
       searchItems search query items |> List.take howMany
 
     updateMenu menumsg model_ =
-      Menu.update menuConfig selected (filter model_.query) menumsg model_.menu
+      Menu.update (filter model_.query) selected menumsg model_.menu
 
     selectedItemText id = 
       findById id items
@@ -139,8 +139,8 @@ update { toString, search, howMany, menuConfig } selected items msg model =
         ( model, selected )
 
 
-view :  Config item -> Maybe id -> List (id, item) -> Model -> Html (Msg id)
-view config selected items model =
+view :  Config item -> List (id, item) -> Maybe id -> Model -> Html (Msg id)
+view config items selected model =
     let
         options =
             { preventDefault = True, stopPropagation = False }

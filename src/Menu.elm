@@ -1,4 +1,4 @@
-module UI.Menu 
+module Menu 
   exposing 
     ( Model
     , Config
@@ -68,8 +68,8 @@ type Msg id
   | NoOp
 
 
-update :  Config item -> Maybe id -> List (id, item) -> Msg id -> Model -> (Model, Maybe id)
-update config selected items msg model =
+update :  List (id, item) -> Maybe id -> Msg id -> Model -> (Model, Maybe id)
+update items selected msg model =
   case msg of
     
     SelectPrevItem ->
@@ -120,7 +120,7 @@ update config selected items msg model =
       ( { model | visible = (List.isEmpty items |> not) }, selected )
 
     Reset ->
-      let (newmodel, _) = update config selected items ShowOrHideMenu model
+      let (newmodel, _) = update items selected ShowOrHideMenu model
       in
         ( newmodel, Nothing ) 
 
