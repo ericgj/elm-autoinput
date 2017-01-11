@@ -1,14 +1,16 @@
 module Autoinput 
-  exposing 
+  exposing
     ( Model
+    , State
     , Config
-    , init
-    , empty
     , Msg
-    , findById
+    , init
+    , initSelected
+    , empty
+    , state
+    , toMaybe
     , update
     , view
-    , defaultMenuStyle
     )
 
 import String
@@ -20,39 +22,66 @@ import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (on, onWithOptions, onInput, keyCode)
 
+import Helpers exposing (nullAttribute, customDecoder, mapNeverToMsg)
 import Menu as Menu
+
 
 -- MODEL
 
-type alias Model = 
-  { query : String
-  , menu : Menu.Model
-  }
+type Model id =
+  Model
+    { state : State id
+    , menu : Menu.Model
+    }
+
+type State id
+  = Initial
+  | Preselected id
+  | Querying String
+  | Selected String id
+
 
 type alias Config item =
   { howMany : Int
   , search : (String -> item -> Bool)
   , toString : (item -> String)
-  , input : HtmlAttributeData
-  , menuConfig : Menu.Config item
+  , input : HtmlAttributeDetails
+  , menuConfig : Menu.Config item 
   }
 
-type alias HtmlAttributeData =
-  { id : Maybe String
-  , classList : List (String, Bool)
+type alias HtmlAttributeDetails =
+  { attributes : List (Attribute Never)
   , style : List (String, String)
   }
 
-init : Config item -> Maybe id -> List (id, item) -> Model
-init { toString } selected items =
-  selected
-    |> Maybe.andThen (\id -> findById id items)
-    |> Maybe.map (\(_,item) -> { query = toString item, menu = Menu.empty } )
-    |> Maybe.withDefault empty
-
-empty : Model
+empty : Model id
 empty =
-  { query = "", menu = Menu.empty }
+  init Initial
+
+initSelected : id -> Model id
+initSelected id =
+  init (Preselected id)
+
+init : State id -> Model id
+init state =
+  Model { state = state, menu = Menu.empty }
+
+toMaybe : Model id -> Maybe id
+toMaybe = state >> stateToMaybe
+
+state : Model id -> State id
+state (Model model) = 
+  model.state
+
+stateToMaybe : State id -> Maybe id
+stateToMaybe state =
+  case state of
+    Preselected id ->
+      Just id
+    Selected _ id ->
+      Just id
+    _ ->
+      Nothing
 
 
 -- UPDATE
@@ -61,159 +90,133 @@ type Msg id
   = SetQuery String
   | BrowsePrevItem
   | BrowseNextItem
-  | SelectCurrentItem
   | HideMenu
   | UpdateMenu (Menu.Msg id)
   | NoOp
 
-update :  Config item -> List (id, item) -> Maybe id -> Msg id -> Model -> (Model, Maybe id)
-update { toString, search, howMany } items selected msg model =
+
+update :  Config item -> List (id, item) -> Msg id -> Model id -> Model id
+update config items msg (Model model) =
   let 
-    filter query =
-      searchItems search query items |> List.take howMany
+    queryValue =
+      inputValue config.toString items model.state
 
-    updateMenu menumsg model_ =
-      Menu.update (filter model_.query) selected menumsg model_.menu
+    filteredItems =
+      searchItems config.search queryValue items |> List.take config.howMany
 
-    selectedItemText id = 
-      findById id items
-        |> Maybe.map (Tuple.second >> toString) 
+    updateMenu menumsg menu =
+      Menu.update filteredItems (Model model |> toMaybe) menumsg menu
 
   in
     case msg of
       UpdateMenu menumsg ->
         let 
-          (newmenu, newselected) = updateMenu menumsg model
+          (newMenu, selected) = 
+            updateMenu menumsg model.menu
+          newState =
+            selected
+              |> Maybe.map (setSelected model.state)
+              |> Maybe.withDefault model.state
         in
-          case newselected of
-            Nothing ->
-              ({ model | menu = newmenu }, newselected)
-            Just id ->
-              ( { model |
-                  menu = newmenu
-                , query = selectedItemText id |> Maybe.withDefault model.query
-                }
-              , newselected
-              )
+          Model { model | state = newState, menu = newMenu }
 
       SetQuery query ->
         let
-          newmodel = { model | query = query }
-          (newmenu, newselected) = updateMenu Menu.Reset newmodel
+          (newMenu, _) = 
+            updateMenu Menu.Reset model.menu
+          newState = 
+            Querying query
         in
-          ({ newmodel | menu = newmenu }, newselected)
+          Model { model | state = newState, menu = newMenu }
 
       BrowsePrevItem ->
-        let
-          (newmenu, newselected) = updateMenu Menu.SelectPrevItem model
-        in
-          ({ model | menu = newmenu }, newselected)
+        update config items (UpdateMenu Menu.SelectPrevItem) (Model model)
 
       BrowseNextItem ->
-        let
-          (newmenu, newselected) = updateMenu Menu.SelectNextItem model
-        in
-          ({ model | menu = newmenu }, newselected)
+        update config items (UpdateMenu Menu.SelectNextItem) (Model model)
 
       HideMenu ->
-        let
-          (newmenu, newselected) = updateMenu Menu.HideMenu model
-        in
-          ({ model | menu = newmenu }, newselected)
-
-      SelectCurrentItem ->
-        let
-          (newmenu, _) = updateMenu Menu.HideMenu model
-        in
-          case selected of
-            Nothing -> 
-              ( model, selected )
-            Just id ->
-              ( { model | query = selectedItemText id |> Maybe.withDefault model.query
-                , menu = newmenu 
-                }
-              , selected
-              )
+        update config items (UpdateMenu Menu.HideMenu) (Model model)
 
       NoOp ->
-        ( model, selected )
+        (Model model)
 
 
-view :  Config item -> List (id, item) -> Maybe id -> Model -> Html (Msg id)
-view config items selected model =
+view :  Config item -> List (id, item) -> Model id -> Html (Msg id)
+view config items (Model model) =
     let
-        options =
+        preventDefault =
             { preventDefault = True, stopPropagation = False }
         
-        keyDecoder =
-            (customDecoder 
-                (\code ->
-                    if code == 38 then
-                        Ok BrowsePrevItem
-                    else if code == 40 then 
-                        Ok BrowseNextItem
-                    else if code == 13 then
-                        case selected of
-                            Nothing -> Ok HideMenu
-                            Just id -> Ok SelectCurrentItem
-                    else if code == 27 then
-                        Ok HideMenu
-                    else
-                        Err "not handling that key"
-                )
-                keyCode
-            )
+        keyDecoder = 
+          customDecoder keyResult keyCode
+
+        keyResult code =
+            if code == 38 then
+                Ok BrowsePrevItem
+            else if code == 40 then 
+                Ok BrowseNextItem
+            else if code == 13 then
+                Ok HideMenu
+            else if code == 27 then
+                Ok HideMenu
+            else
+                Err "not handling that key"
+
+        hideMenuUnlessRelatedTarget =
+            JD.maybe relatedTargetId
+                |> JD.map
+                     ( Maybe.map
+                        (\id -> 
+                          if id == config.menuConfig.id then 
+                            NoOp 
+                          else 
+                            HideMenu
+                        ) 
+                     )
+                |> JD.map (Maybe.withDefault HideMenu)
+
 
         relatedTargetId = 
             JD.at ["relatedTarget", "id"] JD.string 
 
-        blurDecoder =
-            JD.maybe relatedTargetId
-                |> JD.map
-                     ( Maybe.andThen
-                        (\id -> Maybe.map 
-                            (\id_ -> if id == id_ then NoOp else HideMenu) 
-                            config.menuConfig.ul.id
-                        )
-                     )
-                |> JD.map (Maybe.withDefault HideMenu)
+        filteredItems =
+            menuItems config.search config.howMany items model.state
 
-        selectedItemText =
-            selected
-                |> Maybe.andThen (\id -> findById id items)
-                |> Maybe.map (Tuple.second >> config.toString)
-            
-        inputValue =
-            selectedItemText |> Maybe.withDefault model.query
-
-        menu = 
-            Menu.view config.menuConfig selected filtered model.menu
-              |> Html.map UpdateMenu
-            
-        filtered =
-            searchItems config.search model.query items |> List.take config.howMany
+        queryValue =
+            inputValue config.toString items model.state
 
     in
         div []
             [ input
-                [ onInput SetQuery
-                , onWithOptions "keydown" options keyDecoder
-                , on "blur" blurDecoder
-                , value inputValue
-                , Maybe.map id config.input.id |> Maybe.withDefault nullAttribute
-                , classList config.input.classList
-                , style config.input.style
-                , autocomplete False
-                , Maybe.map (attribute "aria-owns") config.menuConfig.ul.id 
-                    |> Maybe.withDefault nullAttribute
-                , attribute "aria-expanded" <| String.toLower <| toString model.menu.visible
-                , attribute "aria-haspopup" <| String.toLower <| toString model.menu.visible
-                , attribute "role" "combobox"
-                , attribute "aria-autocomplete" "list"
-                ]
+                ( List.map (mapNeverToMsg NoOp) config.input.attributes ++ 
+                  [ style config.input.style ] ++
+                  [ onInput SetQuery
+                  , onWithOptions "keydown" preventDefault keyDecoder
+                  , on "blur" hideMenuUnlessRelatedTarget
+                  , value queryValue
+                  , autocomplete False
+                  , attribute "aria-owns" config.menuConfig.id 
+                  , attribute "aria-expanded" 
+                      <| String.toLower <| toString <| Menu.visible model.menu
+                  , attribute "aria-haspopup" 
+                      <| String.toLower <| toString <| Menu.visible model.menu
+                  , attribute "role" "combobox"
+                  , attribute "aria-autocomplete" "list"
+                  ]
+                )
                 []
-            , menu
+            , viewMenu config.menuConfig filteredItems (Model model)
             ]
+
+
+viewMenu : Menu.Config item -> List (id, item) -> Model id -> Html (Msg id)
+viewMenu menuConfig items (Model model) =
+    Menu.view menuConfig (Model model |> toMaybe) items model.menu
+        |> Html.map UpdateMenu
+
+
+-- HELPERS
 
 searchItems : (String -> item -> Bool) -> String -> List (id, item) -> List (id, item)
 searchItems keep str items =
@@ -233,22 +236,56 @@ findById id items =
         findById id rest
 
 
-nullAttribute : Attribute msg
-nullAttribute =
-  property "" JE.null
+setSelected : State id -> id -> State id
+setSelected state id =
+  case state of
+    Initial ->
+      Selected "" id
+    Preselected _ ->
+      Selected "" id     -- should not be able to get here
+    Querying query ->
+      Selected query id
+    Selected query _ ->
+      Selected query id  
+
+selectedItemText : (item -> String) -> List (id,item) -> id -> Maybe String
+selectedItemText toString items id = 
+  findById id items
+    |> Maybe.map (Tuple.second >> toString) 
 
 
-defaultMenuStyle = Menu.defaultMenuStyle
+inputValue : (item -> String) -> List (id,item) -> State id -> String
+inputValue toString items state =
+  case state of
+    Initial ->
+      ""
 
-customDecoder : (a -> Result String b) -> JD.Decoder a -> JD.Decoder b
-customDecoder f d =
-  let
-    resultDecoder x =
-      case x of
-        Ok a ->
-          JD.succeed a
-        Err e ->
-          JD.fail e
-  in
-    JD.map f d |> JD.andThen resultDecoder
+    Preselected id ->
+      selectedItemText toString items id
+        |> Maybe.withDefault ""
+
+    Querying query ->
+      query
+
+    Selected _ id ->
+      selectedItemText toString items id  
+        |> Maybe.withDefault ""
+
+
+menuItems : (String -> item -> Bool) -> Int -> List (id,item) -> State id -> List (id,item)
+menuItems search howMany items state =
+  case state of
+    Initial ->
+      []
+    
+    Preselected id ->
+      []
+
+    Querying query ->
+      searchItems search query items |> List.take howMany
+    
+    Selected query _ ->
+      searchItems search query items |> List.take howMany
+
+
 

@@ -4,6 +4,7 @@ module Menu
     , Config
     , init
     , empty
+    , visible
     , Msg(..)
     , update
     , view
@@ -21,37 +22,38 @@ import Html.Attributes exposing (..)
 import Html.Keyed
 import Html.Events exposing (onClick, onBlur)
 
+import Helpers exposing (nullAttribute, mapNeverToMsg)
 
 -- MODEL
 
-type alias Model =
-  { visible : Bool }
+type Model =
+  Model
+    { visible : Bool }
 
 type alias Config item =
-  { ul : HtmlAttributeData
-  , li : Bool -> item -> HtmlAttributeDataWithChildren
+  { id : String
+  , ul : HtmlDetails
+  , li : Bool -> item -> HtmlDetails
   }
 
-type alias HtmlAttributeData =
-  { id : Maybe String
-  , classList : List (String, Bool)
-  , style : List (String, String)
-  }
-
-type alias HtmlAttributeDataWithChildren =
-  { id : Maybe String
-  , classList : List (String, Bool)
-  , style : List (String, String)
+type alias HtmlDetails =
+  { attributes : List (Attribute Never)
   , children : List (Html Never)
+  , style : List (String, String)
   }
 
 init : Bool -> Model
 init visible =
-  { visible = visible}
+  Model { visible = visible }
 
 empty : Model
 empty = 
   init False
+
+-- only needed in order to set aria- methods on parent element
+visible : Model -> Bool
+visible (Model model) =
+  model.visible
 
 
 -- UPDATE
@@ -69,7 +71,7 @@ type Msg id
 
 
 update :  List (id, item) -> Maybe id -> Msg id -> Model -> (Model, Maybe id)
-update items selected msg model =
+update items selected msg (Model model) =
   case msg of
     
     SelectPrevItem ->
@@ -81,7 +83,7 @@ update items selected msg model =
             Just id -> 
               List.map Tuple.first items |> selectPrev id |> Maybe.withDefault id |> Just
       in
-        ( { model | visible = (List.isEmpty items |> not) }
+        ( Model { model | visible = (List.isEmpty items |> not) }
         , newselected
         )
 
@@ -94,38 +96,38 @@ update items selected msg model =
             Just id -> 
               List.map Tuple.first items |> selectNext id |> Maybe.withDefault id |> Just
       in
-        ( { model | visible = (List.isEmpty items |> not) }
+        ( Model { model | visible = (List.isEmpty items |> not) }
         , newselected
         )
         
     SelectNone ->
-        (model, Nothing)
+        (Model model, Nothing)
         
     SelectItem id ->
       let
         newselected = 
           findById id items |> Maybe.map Tuple.first
       in
-        ( { model | visible = False }
+        ( Model { model | visible = False }
         , newselected
         )
         
     ShowMenu ->
-      ( { model | visible = True }, selected )
+      ( Model { model | visible = True }, selected )
       
     HideMenu ->
-      ( { model | visible = False }, selected )
+      ( Model { model | visible = False }, selected )
     
     ShowOrHideMenu ->
-      ( { model | visible = (List.isEmpty items |> not) }, selected )
+      ( Model { model | visible = (List.isEmpty items |> not) }, selected )
 
     Reset ->
-      let (newmodel, _) = update items selected ShowOrHideMenu model
+      let (newmodel, _) = update items selected ShowOrHideMenu (Model model)
       in
         ( newmodel, Nothing ) 
 
     NoOp -> 
-      ( model, selected )
+      ( Model model, selected )
 
 selectPrev : id -> List id -> Maybe id
 selectPrev id ids =
@@ -160,48 +162,60 @@ findById id items =
 -- VIEW
 
 view :  Config item -> Maybe id -> List (id, item) -> Model -> Html (Msg id)
-view config selected items model =
+view config selected items (Model model) =
     let
         viewItemWithKey (id,item) =
-            (toString id, viewItem config selected (id,item) model)
+            ( toString id
+            , viewItem config selected (id,item) (Model model)
+            )
             
         viewMenu =
             Html.Keyed.ul
-                [ Maybe.map id config.ul.id |> Maybe.withDefault nullAttribute
-                , classList config.ul.classList
-                , style config.ul.style 
-                , tabindex 0
-                , onBlur HideMenu
-                ]
+                ( List.map (mapNeverToMsg NoOp) config.ul.attributes ++
+                  [ style config.ul.style ] ++
+                  [ Html.Attributes.id config.id 
+                  , tabindex 0
+                  , onBlur HideMenu
+                  ]
+                )
                 ( List.map viewItemWithKey items )
     in
         if model.visible then viewMenu else (text "")
 
 viewItem :  Config item -> Maybe id -> (id, item) -> Model -> Html (Msg id)
-viewItem config selected (id, item) model =
+viewItem config selected (id, item) (Model model) =
     let
-      customLiAttr =
-          [ Maybe.map Html.Attributes.id listItemData.id
-              |> Maybe.withDefault nullAttribute
-          , classList listItemData.classList
-          , style listItemData.style
-          , onClick (SelectItem id)
-          ]
-      
       listItemData =
           config.li (isSelected selected) item
 
-      isSelected = Maybe.map (\id_ -> id == id_) >> Maybe.withDefault False
+      isSelected = 
+          Maybe.map (\id_ -> id == id_) 
+            >> Maybe.withDefault False
 
     in
-        Html.li customLiAttr
-            (List.map (Html.map (\_ -> NoOp)) listItemData.children)
+        Html.li 
+            ( List.map (mapNeverToMsg NoOp) listItemData.attributes ++
+              [ style listItemData.style ] ++
+              [ onClick (SelectItem id) ] 
+            )
+            ( List.map (Html.map (\_ -> NoOp)) listItemData.children )
 
+
+-- CONFIG
+
+
+minimalMenuStyle : List ( String, String )
+minimalMenuStyle =
+    [ ( "position", "absolute" )
+    , ( "z-index", "11110" )
+    , ( "list-style-type", "none" )
+    , ( "cursor", "pointer" )
+    ]
 
 defaultMenuStyle : List ( String, String )
 defaultMenuStyle =
-    [ ( "position", "absolute" )
-    , ( "left", "3px" )
+    minimalMenuStyle ++
+    [ ( "left", "3px" )
     , ( "margin-top", "3px" )
     , ( "background", "white" )
     , ( "color", "black" )
@@ -209,12 +223,6 @@ defaultMenuStyle =
     , ( "border-radius", "3px" )
     , ( "box-shadow", "0 0 5px rgba(0,0,0,0.1)" )
     , ( "min-width", "120px" )
-    , ( "z-index", "11110" )
-    , ( "list-style-type", "none" )
-    , ( "cursor", "pointer" )
     ]
 
 
-nullAttribute : Attribute msg
-nullAttribute =
-  property "" JE.null
