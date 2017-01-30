@@ -5,10 +5,10 @@ module Autoinput
     , Config
     , Msg
     , init
-    , initSelected
+    , preselect
     , empty
+    , query
     , state
-    , toMaybe
     , update
     , view
     )
@@ -30,16 +30,20 @@ import Menu as Menu
 
 type Model id =
   Model
-    { state : State id
+    { state : InternalState id
     , menu : Menu.Model
     }
 
-type State id
+type InternalState id
   = Initial
-  | Preselected id
+  | Preselecting id
   | Querying String
-  | Selected String id
+  | Selecting String id
 
+type State id
+  = NoInput
+  | Entered String
+  | Selected id
 
 type alias Config item =
   { howMany : Int
@@ -58,27 +62,36 @@ empty : Model id
 empty =
   init Initial
 
-initSelected : id -> Model id
-initSelected id =
-  init (Preselected id)
+preselect : id -> Model id
+preselect id =
+  init (Preselecting id)
 
-init : State id -> Model id
+query : String -> Model id
+query q =
+  init (Querying q)
+
+init : InternalState id -> Model id
 init state =
   Model { state = state, menu = Menu.empty }
 
-toMaybe : Model id -> Maybe id
-toMaybe = state >> stateToMaybe
-
 state : Model id -> State id
-state (Model model) = 
-  model.state
-
-stateToMaybe : State id -> Maybe id
-stateToMaybe state =
-  case state of
-    Preselected id ->
+state (Model model) =
+  case model.state of
+    Initial ->
+      NoInput
+    Preselecting id ->
+      Selected id
+    Querying query ->
+      Entered query
+    Selecting _ id ->
+      Selected id
+    
+toMaybe : Model id -> Maybe id
+toMaybe (Model model) = 
+  case model.state of
+    Preselecting id ->
       Just id
-    Selected _ id ->
+    Selecting _ id ->
       Just id
     _ ->
       Nothing
@@ -115,7 +128,7 @@ update config items msg (Model model) =
             updateMenu menumsg model.menu
           newState =
             selected
-              |> Maybe.map (setSelected model.state)
+              |> Maybe.map (setSelecting model.state)
               |> Maybe.withDefault model.state
         in
           Model { model | state = newState, menu = newMenu }
@@ -236,17 +249,17 @@ findById id items =
         findById id rest
 
 
-setSelected : State id -> id -> State id
-setSelected state id =
+setSelecting : InternalState id -> id -> InternalState id
+setSelecting state id =
   case state of
     Initial ->
-      Selected "" id
-    Preselected _ ->
-      Selected "" id     -- should not be able to get here
+      Selecting "" id
+    Preselecting _ ->
+      Selecting "" id     -- should not be able to get here
     Querying query ->
-      Selected query id
-    Selected query _ ->
-      Selected query id  
+      Selecting query id
+    Selecting query _ ->
+      Selecting query id  
 
 selectedItemText : (item -> String) -> List (id,item) -> id -> Maybe String
 selectedItemText toString items id = 
@@ -254,37 +267,37 @@ selectedItemText toString items id =
     |> Maybe.map (Tuple.second >> toString) 
 
 
-inputValue : (item -> String) -> List (id,item) -> State id -> String
+inputValue : (item -> String) -> List (id,item) -> InternalState id -> String
 inputValue toString items state =
   case state of
     Initial ->
       ""
 
-    Preselected id ->
+    Preselecting id ->
       selectedItemText toString items id
         |> Maybe.withDefault ""
 
     Querying query ->
       query
 
-    Selected _ id ->
+    Selecting _ id ->
       selectedItemText toString items id  
         |> Maybe.withDefault ""
 
 
-menuItems : (String -> item -> Bool) -> Int -> List (id,item) -> State id -> List (id,item)
+menuItems : (String -> item -> Bool) -> Int -> List (id,item) -> InternalState id -> List (id,item)
 menuItems search howMany items state =
   case state of
     Initial ->
       []
     
-    Preselected id ->
+    Preselecting id ->
       []
 
     Querying query ->
       searchItems search query items |> List.take howMany
     
-    Selected query _ ->
+    Selecting query _ ->
       searchItems search query items |> List.take howMany
 
 
