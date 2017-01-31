@@ -94,7 +94,11 @@ update items selected msg (Model model) =
             Nothing -> 
               List.head items |> Maybe.map Tuple.first
             Just id -> 
-              List.map Tuple.first items |> selectNext id |> Maybe.withDefault id |> Just
+              List.map Tuple.first items 
+                |> Debug.log "item IDs"
+                |> selectNext id 
+                |> Maybe.withDefault id 
+                |> Just
       in
         ( Model { model | visible = (List.isEmpty items |> not) }
         , newselected

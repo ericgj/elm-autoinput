@@ -4,10 +4,10 @@ module Autoinput
     , State
     , Config
     , Msg
-    , init
     , preselect
     , empty
     , query
+    , init
     , state
     , update
     , view
@@ -60,18 +60,28 @@ type alias HtmlAttributeDetails =
 
 empty : Model id
 empty =
-  init Initial
+  initInternal Initial
 
 preselect : id -> Model id
 preselect id =
-  init (Preselecting id)
+  initInternal (Preselecting id)
 
 query : String -> Model id
 query q =
-  init (Querying q)
+  initInternal (Querying q)
 
-init : InternalState id -> Model id
+init : State id -> Model id
 init state =
+  case state of
+    NoInput ->
+      initInternal Initial
+    Selected id ->
+      initInternal (Preselecting id)
+    Entered q ->
+      initInternal (Querying q)
+
+initInternal : InternalState id -> Model id
+initInternal state =
   Model { state = state, menu = Menu.empty }
 
 state : Model id -> State id
@@ -85,7 +95,7 @@ state (Model model) =
       Entered query
     Selecting _ id ->
       Selected id
-    
+
 toMaybe : Model id -> Maybe id
 toMaybe (Model model) = 
   case model.state of
@@ -111,11 +121,11 @@ type Msg id
 update :  Config item -> List (id, item) -> Msg id -> Model id -> Model id
 update config items msg (Model model) =
   let 
-    queryValue =
-      inputValue config.toString items model.state
+    query =
+      queryValue config.toString items model.state
 
     filteredItems =
-      searchItems config.search queryValue items |> List.take config.howMany
+      searchItems config.search query items |> List.take config.howMany
 
     updateMenu menumsg menu =
       Menu.update filteredItems (Model model |> toMaybe) menumsg menu
@@ -196,7 +206,7 @@ view config items (Model model) =
         filteredItems =
             menuItems config.search config.howMany items model.state
 
-        queryValue =
+        val =
             inputValue config.toString items model.state
 
     in
@@ -207,7 +217,7 @@ view config items (Model model) =
                   [ onInput SetQuery
                   , onWithOptions "keydown" preventDefault keyDecoder
                   , on "blur" hideMenuUnlessRelatedTarget
-                  , value queryValue
+                  , value val
                   , autocomplete False
                   , attribute "aria-owns" config.menuConfig.id 
                   , attribute "aria-expanded" 
@@ -280,9 +290,37 @@ inputValue toString items state =
     Querying query ->
       query
 
-    Selecting _ id ->
+    Selecting query id ->
       selectedItemText toString items id  
         |> Maybe.withDefault ""
+
+
+{-| Note subtle difference between `queryValue` and `inputValue` when Selecting. 
+    
+    `inputValue` is the value of the input element, and should be the text of
+    the looked-up selected item. This is used in the `view`.
+    
+    `queryValue` is the last entered query text by the user, which determines
+    the menu choices. This is used in `update`.
+
+    In a nutshell, this is what makes state management tricky in autocomplete.
+
+-}
+queryValue : (item -> String) -> List (id,item) -> InternalState id -> String
+queryValue toString items state =
+  case state of
+    Initial ->
+      ""
+
+    Preselecting id ->
+      selectedItemText toString items id
+        |> Maybe.withDefault ""
+
+    Querying query ->
+      query
+
+    Selecting query id ->
+      query
 
 
 menuItems : (String -> item -> Bool) -> Int -> List (id,item) -> InternalState id -> List (id,item)
