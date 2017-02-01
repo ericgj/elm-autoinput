@@ -11,6 +11,13 @@ module Autoinput
     , state
     , update
     , view
+    , config
+    , defaultConfig
+    , customConfig
+    , inputAttributes
+    , inputStyle
+    , menu
+    , menuItem
     )
 
 import String
@@ -22,7 +29,13 @@ import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (on, onWithOptions, onInput, keyCode)
 
-import Helpers exposing (nullAttribute, customDecoder, mapNeverToMsg)
+import Helpers exposing 
+  ( HtmlDetails
+  , HtmlAttributeDetails
+  , nullAttribute
+  , customDecoder
+  , mapNeverToMsg
+  )
 import Menu as Menu
 
 
@@ -45,18 +58,15 @@ type State id
   | Entered String
   | Selected id
 
-type alias Config item =
-  { howMany : Int
-  , search : (String -> item -> Bool)
-  , toString : (item -> String)
-  , input : HtmlAttributeDetails
-  , menuConfig : Menu.Config item 
-  }
-
-type alias HtmlAttributeDetails =
-  { attributes : List (Attribute Never)
-  , style : List (String, String)
-  }
+type Config item =
+  Config
+    { howMany : Int
+    , search : (String -> item -> Bool)
+    , toString : (item -> String)
+    , input : HtmlAttributeDetails
+    , menuId : String
+    , menuConfig : Menu.Config item 
+    }
 
 empty : Model id
 empty =
@@ -119,7 +129,7 @@ type Msg id
 
 
 update :  Config item -> List (id, item) -> Msg id -> Model id -> Model id
-update config items msg (Model model) =
+update (Config config) items msg (Model model) =
   let 
     query =
       queryValue config.toString items model.state
@@ -153,21 +163,24 @@ update config items msg (Model model) =
           Model { model | state = newState, menu = newMenu }
 
       BrowsePrevItem ->
-        update config items (UpdateMenu Menu.SelectPrevItem) (Model model)
+        update (Config config) items (UpdateMenu Menu.SelectPrevItem) (Model model)
 
       BrowseNextItem ->
-        update config items (UpdateMenu Menu.SelectNextItem) (Model model)
+        update (Config config) items (UpdateMenu Menu.SelectNextItem) (Model model)
 
       HideMenu ->
-        update config items (UpdateMenu Menu.HideMenu) (Model model)
+        update (Config config) items (UpdateMenu Menu.HideMenu) (Model model)
 
       NoOp ->
         (Model model)
 
 
 view :  Config item -> List (id, item) -> Model id -> Html (Msg id)
-view config items (Model model) =
+view (Config config) items (Model model) =
     let
+        menuConfig =
+            Menu.menuAttributes [ Html.Attributes.id config.menuId ] config.menuConfig
+
         preventDefault =
             { preventDefault = True, stopPropagation = False }
         
@@ -191,7 +204,7 @@ view config items (Model model) =
                 |> JD.map
                      ( Maybe.map
                         (\id -> 
-                          if id == config.menuConfig.id then 
+                          if id == config.menuId then 
                             NoOp 
                           else 
                             HideMenu
@@ -219,7 +232,7 @@ view config items (Model model) =
                   , on "blur" hideMenuUnlessRelatedTarget
                   , value val
                   , autocomplete False
-                  , attribute "aria-owns" config.menuConfig.id 
+                  , attribute "aria-owns" config.menuId 
                   , attribute "aria-expanded" 
                       <| String.toLower <| toString <| Menu.visible model.menu
                   , attribute "aria-haspopup" 
@@ -229,7 +242,7 @@ view config items (Model model) =
                   ]
                 )
                 []
-            , viewMenu config.menuConfig filteredItems (Model model)
+            , viewMenu menuConfig filteredItems (Model model)
             ]
 
 
@@ -337,6 +350,100 @@ menuItems search howMany items state =
     
     Selecting query _ ->
       searchItems search query items |> List.take howMany
+
+
+-- CONFIG
+
+config :
+    { howMany : Int
+    , search : (String -> item -> Bool)
+    , toString : (item -> String)
+    , menuId : String
+    , menuItemStyle : (Bool -> List (String, String))
+    } 
+    -> Config item 
+config { howMany, search, toString, menuId, menuItemStyle } =
+    let 
+        menuItem_ selected item =
+            { attributes = []
+            , style = menuItemStyle selected
+            , children = [ text (toString item) ]
+            }
+    in
+        Config
+            { howMany = howMany
+            , search = search
+            , toString = toString
+            , input = defaultInput
+            , menuId = menuId
+            , menuConfig = Menu.defaultConfig |> Menu.menuItem menuItem_
+            }
+
+defaultConfig :
+    { howMany : Int
+    , search : (String -> item -> Bool)
+    , toString : (item -> String)
+    , menuId : String
+    }
+    -> Config item
+defaultConfig { howMany, search, toString, menuId } =
+    Config 
+        { howMany = howMany
+        , search = search
+        , toString = toString
+        , input = defaultInput
+        , menuId = menuId
+        , menuConfig = Menu.defaultConfig
+        }
+
+inputAttributes : List (Html.Attribute Never) -> Config item -> Config item
+inputAttributes attrs (Config c) =
+    let
+        setAttrs details = { details | attributes = attrs }
+    in
+      Config { c | input = setAttrs c.input }
+
+inputStyle : List (String,String) -> Config item -> Config item
+inputStyle styles (Config c) =
+    let
+        setStyle details = { details | style = styles }
+    in
+      Config { c | input = setStyle c.input }
+
+menu : Menu.Config item -> Config item -> Config item
+menu m (Config c) =
+    Config { c | menuConfig = m }
+
+
+menuItem : ( Bool -> item -> HtmlDetails ) -> Config item -> Config item
+menuItem fn (Config c) =
+    Config { c | menuConfig = Menu.menuItem fn c.menuConfig }
+
+menuStyle : List (String,String) -> Config item -> Config item
+menuStyle styles (Config c) =
+    Config { c | menuConfig = Menu.menuStyle styles c.menuConfig }
+
+menuAttributes : List (Html.Attribute Never) -> Config item -> Config item
+menuAttributes attrs (Config c) =
+    Config { c | menuConfig = Menu.menuAttributes attrs c.menuConfig }
+
+
+defaultInput : HtmlAttributeDetails
+defaultInput =
+  { attributes = [], style = [] }
+
+
+customConfig : 
+    { howMany : Int
+    , search : (String -> item -> Bool)
+    , toString : (item -> String)
+    , input : HtmlAttributeDetails
+    , menuId : String
+    , menuConfig : Menu.Config item 
+    }
+    -> Config item
+customConfig c =
+    Config c
 
 
 

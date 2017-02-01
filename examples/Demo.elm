@@ -30,38 +30,26 @@ update msg model =
 
 view : Model -> Html Msg
 view model =
-  Autoinput.view config trees model |> Html.map UpdateAutoInput
-
+  div []
+    [ label [] [text "Select the tree species"]
+    , Autoinput.view config trees model |> Html.map UpdateAutoInput
+    ]
 
 -- CONSTANTS
 
 config : Autoinput.Config Tree
 config =
-  { howMany = 5 
-  , search = searchConfig
-  , toString = .commonName
-  , input = { attributes = [], style = [] }
-  , menuConfig =
-    { id = "tree-menu"
-    , ul = 
-      { attributes = []
-      , style = [("list-style-type","none")]
-      , children = [] 
+  Autoinput.config 
+      { howMany = 10 
+      , search = searchConfig
+      , toString = (\item -> item.commonName ++ " (" ++ item.scientificName ++ ")")
+      , menuId = "tree-menu"
+      , menuItemStyle = (\selected -> if selected then [("background-color","yellow")] else [])
       }
-    , li = menuItemConfig
-    }
-  }
 
 searchConfig : String -> Tree -> Bool
 searchConfig q tree =
   tree.commonName
     |> String.toLower
     |> String.contains (String.toLower q)
-
-menuItemConfig selected item =
-  { attributes = []
-  , style = if selected then [("background-color","yellow")] else []
-  , children = [ text (item.commonName ++ " (" ++ item.scientificName ++ ")") ]
-  }
-
 

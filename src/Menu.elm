@@ -8,9 +8,14 @@ module Menu
     , Msg(..)
     , update
     , view
+    , config
+    , defaultConfig
+    , menu
+    , menuItem
+    , menuStyle
+    , menuAttributes
     , defaultMenuStyle
     )
-
 
 import String
 import List
@@ -22,7 +27,7 @@ import Html.Attributes exposing (..)
 import Html.Keyed
 import Html.Events exposing (onClick, onBlur)
 
-import Helpers exposing (nullAttribute, mapNeverToMsg)
+import Helpers exposing (nullAttribute, mapNeverToMsg, HtmlDetails)
 
 -- MODEL
 
@@ -30,17 +35,11 @@ type Model =
   Model
     { visible : Bool }
 
-type alias Config item =
-  { id : String
-  , ul : HtmlDetails
-  , li : Bool -> item -> HtmlDetails
-  }
-
-type alias HtmlDetails =
-  { attributes : List (Attribute Never)
-  , children : List (Html Never)
-  , style : List (String, String)
-  }
+type Config item =
+  Config
+    { ul : HtmlDetails
+    , li : Bool -> item -> HtmlDetails
+    }
 
 init : Bool -> Model
 init visible =
@@ -95,7 +94,6 @@ update items selected msg (Model model) =
               List.head items |> Maybe.map Tuple.first
             Just id -> 
               List.map Tuple.first items 
-                |> Debug.log "item IDs"
                 |> selectNext id 
                 |> Maybe.withDefault id 
                 |> Just
@@ -166,19 +164,18 @@ findById id items =
 -- VIEW
 
 view :  Config item -> Maybe id -> List (id, item) -> Model -> Html (Msg id)
-view config selected items (Model model) =
+view (Config config) selected items (Model model) =
     let
         viewItemWithKey (id,item) =
             ( toString id
-            , viewItem config selected (id,item) (Model model)
+            , viewItem (Config config) selected (id,item) (Model model)
             )
             
         viewMenu =
             Html.Keyed.ul
                 ( List.map (mapNeverToMsg NoOp) config.ul.attributes ++
                   [ style config.ul.style ] ++
-                  [ Html.Attributes.id config.id 
-                  , tabindex 0
+                  [ tabindex 0
                   , onBlur HideMenu
                   ]
                 )
@@ -187,7 +184,7 @@ view config selected items (Model model) =
         if model.visible then viewMenu else (text "")
 
 viewItem :  Config item -> Maybe id -> (id, item) -> Model -> Html (Msg id)
-viewItem config selected (id, item) (Model model) =
+viewItem (Config config) selected (id, item) (Model model) =
     let
       listItemData =
           config.li (isSelected selected) item
@@ -207,6 +204,40 @@ viewItem config selected (id, item) (Model model) =
 
 -- CONFIG
 
+config : { ul : HtmlDetails, li : Bool -> item -> HtmlDetails } -> Config item
+config c =
+    Config c
+
+menuItem : (Bool -> item -> HtmlDetails) -> Config item -> Config item
+menuItem fn (Config c) =
+    Config { c | li = fn }
+
+menu : HtmlDetails -> Config item -> Config item
+menu details (Config c) =
+    Config { c | ul = details } 
+
+menuAttributes : List (Html.Attribute Never) -> Config item -> Config item
+menuAttributes attrs (Config c) =
+    let
+        setAttrs details =
+            { details | attributes = attrs }
+    in
+        Config { c | ul = setAttrs c.ul }
+
+menuStyle : List (String,String) -> Config item -> Config item
+menuStyle styles (Config c) =
+    let
+        setStyle details =
+            { details | style = styles }
+    in
+        Config { c | ul = setStyle c.ul }
+
+defaultConfig : Config item
+defaultConfig =
+  config
+    { ul = { attributes = [], style = minimalMenuStyle, children = [] }
+    , li = minimalMenuItem
+    }
 
 minimalMenuStyle : List ( String, String )
 minimalMenuStyle =
@@ -215,6 +246,13 @@ minimalMenuStyle =
     , ( "list-style-type", "none" )
     , ( "cursor", "pointer" )
     ]
+
+minimalMenuItem :  Bool -> item -> HtmlDetails
+minimalMenuItem selected item =
+    { attributes = []
+    , style = []
+    , children = [ text (toString item) ]
+    }
 
 defaultMenuStyle : List ( String, String )
 defaultMenuStyle =

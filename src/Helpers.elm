@@ -2,8 +2,20 @@ module Helpers exposing (..)
 
 import Json.Decode as JD
 import Json.Encode as JE
-import Html exposing (Attribute)
+import Html exposing (Attribute, Html)
 import Html.Attributes exposing (..)
+
+
+type alias HtmlAttributeDetails =
+  { attributes : List (Attribute Never)
+  , style : List (String, String)
+  }
+
+type alias HtmlDetails =
+  { attributes : List (Attribute Never)
+  , style : List (String, String)
+  , children : List (Html Never)
+  }
 
 
 nullAttribute : Attribute msg
