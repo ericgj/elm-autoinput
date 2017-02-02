@@ -27,7 +27,7 @@ an input element that, as you type, narrows a list of choices visible in a menu.
 
 Configuration and the list of choices are passed in to `update` and `view`,
 but do not form part of the state managed by this library. This ensures that
-your data does not go out of sync with the menu list -- and in fact you can
+your data does not go out of sync with the menu list &mdash; and in fact you can
 change the list as the user input changes, enabling common cases such as
 remote querying.
 
@@ -42,8 +42,12 @@ This library started as a fork of the [elm-autocomplete][] "accessible" example,
 and some of the view and configuration remains similar, although the underlying
 implementation is different.
 
-The configuration API is a work in progress, but owes a lot to
-[elm-sortable-table][] conventions.
+PLEASE NOTE: 
+
+  - The configuration API is a work in progress, but owes a lot to
+    [elm-sortable-table][] conventions.
+  - It works, but needs a bit of work still to get to a comfortable UX.
+
 
 [example]: https://github.com/ericgj/elm-autoinput/tree/master/examples/Demo.elm
 
@@ -59,13 +63,17 @@ The configuration API is a work in progress, but owes a lot to
 
 @docs Msg, update
 
+# Constructors
+
+@docs empty, preselect, query, init
+
 # Configuration
 
-@docs config, defaultConfig, inputAttributes, inputStyle, menu, menuItem, customConfig, Config
+@docs Config, config, defaultConfig, inputAttributes, inputStyle, menu, menuItem, customConfig
 
 # State
 
-@docs Model, State, state, empty, preselect, query, init
+@docs State, Model, state
 
 
 -}
@@ -94,9 +102,11 @@ import Menu as Menu
 
 {-|
 
-The Autoinput model consists of the input state and the menu state.
-(The menu state is simply whether the menu is visible or not; otherwise, its
-appearance and behavior is controlled through the Autoinput module).
+The internal Autoinput model consists of the input state and the menu state.
+
+(Implementation note: the menu state is simply whether the menu is visible or 
+not; otherwise, its appearance and behavior is controlled through the Autoinput 
+module).
 
 -}
 type Model id
@@ -122,8 +132,14 @@ type InternalState id
 
 {-|
 
-Selection state. Note to get the current state from an Autoinput model, use
-`state model`.
+Selection state. Note to get the current selection state from an Autoinput model, 
+use `Autoinput.state model`.
+
+  - `NoInput`: user hasn't entered anything yet or input box is otherwise empty.
+  - `Entered String`: user has entered a query string, but has not made a
+       selection from the menu.
+  - `Selected id`: user has made a selection from the menu, and here is its 
+       `id`. 
 
 -}
 type State id
@@ -132,7 +148,11 @@ type State id
     | Selected id
 
 
-{-| Configuration passed to both `view` and `update`.
+{-| 
+
+Configuration passed to both `view` and `update`. See below for how to specify
+`Config`. 
+
 -}
 type Config item
     = Config
@@ -145,28 +165,41 @@ type Config item
         }
 
 
-{-| Construct an empty model (no input, hidden menu).
+{-| 
+
+Construct an empty model (no input, hidden menu).
+
 -}
 empty : Model id
 empty =
     initInternal Initial
 
 
-{-| Construct a model with an initial selected value.
+{-| 
+
+Construct a model with an initial selected value.
+
 -}
 preselect : id -> Model id
 preselect id =
     initInternal (Preselecting id)
 
 
-{-| Construct a model with an initial query value.
+{-| 
+
+Construct a model with an initial query value.
+
 -}
 query : String -> Model id
 query q =
     initInternal (Querying q)
 
 
-{-| Construct a model from given State.
+{-| 
+
+Construct a model from given State. Useful if you are passing in a previously
+stored state, e.g. loaded from local storage or server.
+
 -}
 init : State id -> Model id
 init state =
@@ -186,7 +219,11 @@ initInternal state =
     Model { state = state, menu = Menu.empty }
 
 
-{-| Extract internal state of model to State.
+{-| 
+
+Get external selection state.  Useful for example if you want to persist
+selection state and load it in (via `init`) at another time.
+
 -}
 state : Model id -> State id
 state (Model model) =
@@ -223,10 +260,12 @@ toMaybe (Model model) =
 
 {-|
 
-Note that the Msg type specifies the type of the item `id`. So for instance
-if the list you pass in to `view` and `update` is `List (Int, String)`, then
-your wrapped Msg will be `UpdateAutoinput (Autoinput.Msg Int)`.  See `update`
-example.
+Internal `Msg` type used by Autoinput. Your update function should wrap msgs
+of this type, with the type of the item `id` as a parameter.
+
+So for instance if the list you pass in to `view` and `update` is 
+`List (Int, String)`, then your wrapped Msg will be something like 
+`UpdateAutoinput (Autoinput.Msg Int)`.  See the `update` example below.
 
 -}
 type Msg id
@@ -240,9 +279,14 @@ type Msg id
 
 {-|
 
-Handle input. Your application should nest Autoinput messages in the typical
-way using `Html.map`. Note that Autoinput Msg type takes an `id` parameter: the
-ID type of items in your list.
+Handle input. Your application should nest Autoinput messages using `Html.map`. 
+Note that the `Msg` type takes an `id` parameter: the ID type of items in 
+your list (the first element of the tuple).
+
+Note that you pass two pieces of context in to `update`:
+
+  - The `Config`,  and
+  - The full list of items, as tuples of `(id, item)`.
 
 Here is an example:
 
@@ -256,20 +300,13 @@ Here is an example:
     -- update
 
     type Msg
-        -- ...
-        | UpdateAutoInput (Autoinput.Msg ThingId)
+        = UpdateAutoInput (Autoinput.Msg ThingId)
         -- ...
 
     update msg model =
         case msg of
             UpdateAutoInput automsg ->
                 Autoinput.update config things automsg model
-
-
-Note that you pass two pieces of context in to `update`:
-
-  - The `Config`,  and
-  - The full list of items, as tuples of `(id, item)`.
 
 -}
 update : Config item -> List ( id, item ) -> Msg id -> Model id -> Model id
@@ -303,7 +340,10 @@ update (Config config) items msg (Model model) =
                         updateMenu Menu.Reset model.menu
 
                     newState =
-                        Querying query
+                        if query == "" then 
+                            Initial 
+                        else 
+                            Querying query
                 in
                     Model { model | state = newState, menu = newMenu }
 
@@ -321,12 +361,11 @@ update (Config config) items msg (Model model) =
 
 
 {-|
-
-Render the input element and associated menu div.
+Render the input field and associated menu.
 
 Note that the same as for `update`, you pass in two pieces of context:
 
-  - The `Config`,  and
+  - The `Config` (see below),  and
   - The full list of items, as tuples of `(id, item)`.
 
 -}
@@ -478,7 +517,6 @@ inputValue toString items state =
 
 
 {-|
-
 Note subtle difference between `queryValue` and `inputValue` when Selecting.
 
 `inputValue` is the value of the input element, and should be the text of
@@ -527,7 +565,9 @@ menuItems search howMany items state =
 -- CONFIG
 
 
-{-| Create the `config` to pass into `update` and `view`. Everything we need in
+{-| 
+
+Create the `config` to pass into `update` and `view`. Everything we need in
 order to filter and display the menu in response to user input.
 
 For example, say we want to build a menu of `Person`s, searching either their
@@ -598,7 +638,10 @@ config { howMany, search, toString, menuId, menuItemStyle } =
             }
 
 
-{-| TODO
+{-| 
+
+The same as `config`, but with a default configuration for the menu items.
+
 -}
 defaultConfig :
     { howMany : Int
@@ -618,7 +661,14 @@ defaultConfig { howMany, search, toString, menuId } =
         }
 
 
-{-| TODO
+{-|
+
+Set attributes of the input field.
+
+    config = 
+        defaultConfig
+          |> inputAttributes [ class "autoinput" ]
+
 -}
 inputAttributes : List (Html.Attribute Never) -> Config item -> Config item
 inputAttributes attrs (Config c) =
@@ -629,7 +679,14 @@ inputAttributes attrs (Config c) =
         Config { c | input = setAttrs c.input }
 
 
-{-| TODO
+{-| 
+
+Set style of the input field.
+
+    config =
+        defaultConfig
+            |> inputStyle [("border-radius", "5px")]
+
 -}
 inputStyle : List ( String, String ) -> Config item -> Config item
 inputStyle styles (Config c) =
@@ -640,32 +697,72 @@ inputStyle styles (Config c) =
         Config { c | input = setStyle c.input }
 
 
-{-| TODO
+{-| 
+
+Set menu configuration directly. Usually it's more straightforward to use 
+`menuItem` (for individual menu items), or  `menuStyle` and `menuAttributes` 
+(for the menu itself).
+
 -}
 menu : Menu.Config item -> Config item -> Config item
 menu m (Config c) =
     Config { c | menuConfig = m }
 
 
-{-| TODO
+{-| 
+
+Set menu item attributes, style, and children (view), as a function of
+
+  - whether the current item is selected or not, and
+  - the current item.
+
+
+    let
+        menuItemPieces selected item =
+            { attributes = [ class "autoinput-menu-item" ]
+            , style = if selected then highlight else []
+            , children = 
+              [ div []
+                [ span ( if item.starred then [ class = "star" ] else [] ) []
+                , span [] [ text item.name ]
+                ]
+              ]
+            }
+    in
+        defaultConfig
+           |> menuItem menuItemPieces
+
 -}
 menuItem : (Bool -> item -> HtmlDetails) -> Config item -> Config item
 menuItem fn (Config c) =
     Config { c | menuConfig = Menu.menuItem fn c.menuConfig }
 
 
-{-| TODO
+{-| 
+
+Set menu style. 
+
+    defaultConfig
+        |> menuStyle [ ( "background-color", "#EEE" ) ]
+
 -}
 menuStyle : List ( String, String ) -> Config item -> Config item
 menuStyle styles (Config c) =
     Config { c | menuConfig = Menu.menuStyle styles c.menuConfig }
 
 
-{-| TODO
+{-| 
+
+Set menu attributes.
+
+    defaultConfig
+        |> menuAttributes [ class "autocomplete-menu" ]
+
 -}
 menuAttributes : List (Html.Attribute Never) -> Config item -> Config item
 menuAttributes attrs (Config c) =
     Config { c | menuConfig = Menu.menuAttributes attrs c.menuConfig }
+
 
 
 defaultInput : HtmlAttributeDetails
@@ -673,7 +770,11 @@ defaultInput =
     { attributes = [], style = [] }
 
 
-{-| TODO
+{-| 
+
+The most generic configuration. Use at your own risk, it may change in future 
+versions.
+
 -}
 customConfig :
     { howMany : Int
@@ -686,3 +787,4 @@ customConfig :
     -> Config item
 customConfig c =
     Config c
+

@@ -1,5 +1,6 @@
-module Trees exposing (Tree, ID, trees)
+module Trees exposing (Tree, ID, encodeID, trees)
 
+import Json.Encode
 
 type alias Tree =
     { region : String
@@ -11,6 +12,9 @@ type alias Tree =
 
 type alias ID =
     Int
+
+encodeID : ID -> Json.Encode.Value
+encodeID = Json.Encode.int
 
 
 trees : List ( ID, Tree )
