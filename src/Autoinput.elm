@@ -31,9 +31,12 @@ your data does not go out of sync with the menu list -- and in fact you can
 change the list as the user input changes, enabling common cases such as
 remote querying.
 
+Your list of choices are passed in as a `List (id, item)` &mdash; that is, a 
+tuple of a unique identifier for the item, and the item itself.
+
 There is a basic usage [example][] to look at, and more are planned.
 
-# Prior art
+## Prior art
 
 This library started as a fork of the [elm-autocomplete][] "accessible" example,
 and some of the view and configuration remains similar, although the underlying
@@ -42,28 +45,28 @@ implementation is different.
 The configuration API is a work in progress, but owes a lot to
 [elm-sortable-table][] conventions.
 
+[example]: https://github.com/ericgj/elm-autoinput/tree/master/examples/Demo.elm
+
+[elm-autocomplete]: https://github.com/thebritican/elm-autocomplete/tree/master/examples/src/AccessibleExample.elm
+
+[elm-sortable-table]: https://github.com/evancz/elm-sortable-table
+
 # View
 
 @docs view
 
 # Update
 
-@docs update
+@docs Msg, update
 
 # Configuration
 
-@docs config, defaultConfig, inputAttributes, inputStyle, menu, menuItem, customConfig
+@docs config, defaultConfig, inputAttributes, inputStyle, menu, menuItem, customConfig, Config
 
 # State
 
-@docs State, state, empty, preselect, query, init
+@docs Model, State, state, empty, preselect, query, init
 
-
-[example]: https://github.com/ericgj/elm-autoinput/tree/master/examples/Demo.elm
-
-[elm-autocomplete]: https://github.com/thebritican/elm-autocomplete/tree/master/examples/src/AccessibleExample.elm
-
-[elm-sortable-table]: https://github.com/evancz/elm-sortable-table
 
 -}
 
@@ -88,7 +91,13 @@ import Menu as Menu
 
 -- MODEL
 
+{-| 
 
+The Autoinput model consists of the input state and the menu state.
+(The menu state is simply whether the menu is visible or not; otherwise, its
+appearance and behavior is controlled through the Autoinput module).
+
+-}
 type Model id
     = Model
         { state : InternalState id
@@ -98,9 +107,9 @@ type Model id
 
 {-|
 
-Note internal state used by this module has more information than the externally
-facing State. It distinguishes between pre-selection and selection, and retains
-the query string even after a selection is made.
+Note the internal _input_ state used by this module has more information than
+the externally facing _selection_ State. It distinguishes between pre-selection
+and selection, and retains the query string even after a selection is made.
 
 -}
 type InternalState id
@@ -110,14 +119,19 @@ type InternalState id
     | Selecting String id
 
 
-{-| Input state. Note to get the current state, use `state model`.
+{-| 
+
+Selection state. Note to get the current state from an Autoinput model, use 
+`state model`.
+
 -}
 type State id
     = NoInput
     | Entered String
     | Selected id
 
-
+{-|  Configuration passed to both `view` and `update`.
+-}
 type Config item
     = Config
         { howMany : Int
@@ -205,6 +219,14 @@ toMaybe (Model model) =
 -- UPDATE
 
 
+{-| 
+
+Note that the Msg type specifies the type of the item `id`. So for instance
+if the list you pass in to `view` and `update` is `List (Int, String)`, then
+your wrapped Msg will be `UpdateAutoinput (Autoinput.Msg Int)`.  See `update`
+example.
+
+-}
 type Msg id
     = SetQuery String
     | BrowsePrevItem
