@@ -1,7 +1,7 @@
 {
-    "version": "1.0.0",
+    "version": "2.0.0",
     "summary": "Simple autocomplete menu",
-    "repository": "https://github.com/user/project.git",
+    "repository": "https://github.com/ericgj/elm-autoinput.git",
     "license": "BSD3",
     "source-directories": [
         "src"

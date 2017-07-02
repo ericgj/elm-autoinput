@@ -1,9 +1,10 @@
 module Demo exposing (..)
 
+import Json.Encode
 import Html exposing (..)
 import Html.Attributes exposing (style)
-import Trees exposing (ID, Tree, trees)
-import Autoinput
+import Trees exposing (ID, encodeID, Tree, trees)
+import Autoinput exposing (State(..))
 
 
 main : Program Never Model Msg
@@ -23,6 +24,34 @@ init : Model
 init =
     Autoinput.preselect 5
 
+{- 
+
+   An example of how you might use Autoinput.state : encoding autocomplete 
+   models for external storage.
+
+-}
+encode : Model -> Json.Encode.Value
+encode model =
+    Autoinput.state model |>
+        (\state ->
+            case state of
+                NoInput ->
+                    Json.Encode.object
+                        [ ("constructor", Json.Encode.string "NoInput") ]
+                
+                Entered query ->
+                    Json.Encode.object
+                        [ ("constructor", Json.Encode.string "Entered")
+                        , ("query", Json.Encode.string query)
+                        ]
+
+                Selected id ->
+                    Json.Encode.object
+                        [ ("constructor", Json.Encode.string "Selected")
+                        , ("id", encodeID id)
+                        ]
+        )
+
 
 type Msg
     = UpdateAutoInput (Autoinput.Msg ID)
@@ -38,9 +67,16 @@ update msg model =
 view : Model -> Html Msg
 view model =
     div []
+      [ div [ style [("display", "inline-block"), ("width","300px")] ]
         [ label [] [ text "Select the tree species" ]
         , Autoinput.view config trees model |> Html.map UpdateAutoInput
         ]
+      , div [ style [("display", "inline-block"), ("width","300px")] ]
+        [ pre [ style [("color", "red")] ]
+          [ text <| toString <| (Autoinput.state model)
+          ]
+        ]
+      ]
 
 
 
@@ -69,3 +105,4 @@ searchConfig q tree =
     tree.commonName
         |> String.toLower
         |> String.contains (String.toLower q)
+
