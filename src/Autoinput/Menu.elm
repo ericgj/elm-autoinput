@@ -1,4 +1,4 @@
-module Menu
+module Autoinput.Menu
     exposing
         ( Model
         , Config
@@ -66,10 +66,10 @@ visible (Model model) =
 -- UPDATE
 
 
-type Msg id
+type Msg
     = SelectPrevItem
     | SelectNextItem
-    | SelectItem id
+    | SelectItem String
     | SelectNone
     | ShowMenu
     | HideMenu
@@ -78,18 +78,21 @@ type Msg id
     | NoOp
 
 
-update : List ( id, item ) -> Maybe id -> Msg id -> Model -> ( Model, Maybe id )
-update items selected msg (Model model) =
+update : (item -> String) -> List item -> Maybe item -> Msg -> Model -> ( Model, Maybe item )
+update toId items selected msg (Model model) =
     case msg of
         SelectPrevItem ->
             let
                 newselected =
                     case selected of
                         Nothing ->
-                            List.head items |> Maybe.map Tuple.first
+                            List.head items
 
-                        Just id ->
-                            List.map Tuple.first items |> selectPrev id |> Maybe.withDefault id |> Just
+                        Just item ->
+                            items 
+                                |> selectPrev toId item
+                                |> Maybe.withDefault item 
+                                |> Just
             in
                 ( Model { model | visible = (List.isEmpty items |> not) }
                 , newselected
@@ -100,12 +103,12 @@ update items selected msg (Model model) =
                 newselected =
                     case selected of
                         Nothing ->
-                            List.head items |> Maybe.map Tuple.first
+                            List.head items
 
-                        Just id ->
-                            List.map Tuple.first items
-                                |> selectNext id
-                                |> Maybe.withDefault id
+                        Just item ->
+                            items
+                                |> selectNext toId item
+                                |> Maybe.withDefault item
                                 |> Just
             in
                 ( Model { model | visible = (List.isEmpty items |> not) }
@@ -118,7 +121,7 @@ update items selected msg (Model model) =
         SelectItem id ->
             let
                 newselected =
-                    findById id items |> Maybe.map Tuple.first
+                    findById toId id items
             in
                 ( Model { model | visible = False }
                 , newselected
@@ -134,100 +137,102 @@ update items selected msg (Model model) =
             ( Model { model | visible = (List.isEmpty items |> not) }, selected )
 
         Reset ->
-            let
-                ( newmodel, _ ) =
-                    update items selected ShowOrHideMenu (Model model)
-            in
-                ( newmodel, Nothing )
+            ( Model { model | visible = (List.isEmpty items |> not) }, Nothing )
 
         NoOp ->
             ( Model model, selected )
 
 
-selectPrev : id -> List id -> Maybe id
-selectPrev id ids =
+selectPrev : (item -> String) -> item -> List item -> Maybe item
+selectPrev toId item items =
     let
         getPrev cur result =
             case result of
                 Err Nothing ->
                     Err (Just cur)
 
-                Err (Just id_) ->
-                    if id_ == id then
+                Err (Just item_) ->
+                    if toId item == toId item_ then
                         (Ok cur)
                     else
                         (Err (Just cur))
 
-                Ok id_ ->
-                    Ok id_
+                Ok item_ ->
+                    result
     in
-        List.foldr getPrev (Err Nothing) ids
+        List.foldr getPrev (Err Nothing) items
             |> Result.toMaybe
 
 
-selectNext : id -> List id -> Maybe id
-selectNext id ids =
-    selectPrev id (List.reverse ids)
+selectNext : (item -> String) -> item -> List item -> Maybe item
+selectNext toId item items =
+    selectPrev toId item (List.reverse items)
 
 
-findById : id -> List ( id, item ) -> Maybe ( id, item )
-findById id items =
+findById : (item -> String) -> String -> List item -> Maybe item
+findById toId id items =
     case items of
         [] ->
             Nothing
 
         first :: rest ->
-            if (Tuple.first first) == id then
+            if toId first == id then
                 Just first
             else
-                findById id rest
+                findById toId id rest
 
 
 
 -- VIEW
 
 
-view : Config item -> Maybe id -> List ( id, item ) -> Model -> Html (Msg id)
-view (Config config) selected items (Model model) =
+view : (item -> String) -> Config item -> Maybe item -> List item -> Model -> Html Msg
+view toId (Config config) selected items (Model model) =
+    if model.visible then
+        viewMenu toId (Config config) selected items
+    else
+        text ""
+
+viewMenu : (item -> String) -> Config item -> Maybe item -> List item -> Html Msg 
+viewMenu toId (Config config) selected items =
+    Html.Keyed.ul
+        ( List.map (mapNeverToMsg NoOp) config.ul.attributes
+              ++ [ style config.ul.style
+                 , tabindex 0
+                 , onBlur HideMenu
+                 ]
+        )
+        (List.map (viewItemWithKey toId (Config config) selected) items)
+
+viewItemWithKey : (item -> String) -> Config item -> Maybe item -> item -> ( String, Html Msg )
+viewItemWithKey toId (Config config) selected item =
     let
-        viewItemWithKey ( id, item ) =
-            ( toString id
-            , viewItem (Config config) selected ( id, item ) (Model model)
-            )
-
-        viewMenu =
-            Html.Keyed.ul
-                (List.map (mapNeverToMsg NoOp) config.ul.attributes
-                    ++ [ style config.ul.style ]
-                    ++ [ tabindex 0
-                       , onBlur HideMenu
-                       ]
-                )
-                (List.map viewItemWithKey items)
-    in
-        if model.visible then
-            viewMenu
-        else
-            (text "")
-
-
-viewItem : Config item -> Maybe id -> ( id, item ) -> Model -> Html (Msg id)
-viewItem (Config config) selected ( id, item ) (Model model) =
-    let
-        listItemData =
-            config.li (isSelected selected) item
+        id = 
+            toId item
 
         isSelected =
-            Maybe.map (\id_ -> id == id_)
-                >> Maybe.withDefault False
+            selected
+                |> Maybe.map (\item_ -> toId item_ == id)
+                |> Maybe.withDefault False
+    in
+        ( id
+        , viewItem (Config config) isSelected id item
+        )
+
+
+viewItem : Config item -> Bool -> String -> item -> Html Msg
+viewItem (Config config) isSelected id item =
+    let
+        listItemData =
+            config.li isSelected item
     in
         Html.li
-            (List.map (mapNeverToMsg NoOp) listItemData.attributes
-                ++ [ style listItemData.style ]
-                ++ [ onClick (SelectItem id) ]
+            ( List.map (mapNeverToMsg NoOp) listItemData.attributes
+                  ++ [ style listItemData.style
+                     , onClick (SelectItem id) 
+                     ]
             )
-            (List.map (Html.map (\_ -> NoOp)) listItemData.children)
-
+            ( List.map (Html.map (\_ -> NoOp)) listItemData.children )
 
 
 -- CONFIG

@@ -4,57 +4,31 @@ import Json.Encode
 import Html exposing (..)
 import Html.Attributes exposing (style)
 import Trees exposing (ID, encodeID, Tree, trees)
-import Autoinput exposing (State(..))
+import Autoinput exposing (Autoinput, State(..))
 
 
 main : Program Never Model Msg
 main =
     beginnerProgram
-        { model = init
+        { model = init <| List.head trees
         , view = view
         , update = update
         }
 
 
 type alias Model =
-    Autoinput.Model ID
+    Autoinput (ID, Tree)
 
 
-init : Model
-init =
-    Autoinput.preselect 5
-
-{- 
-
-   An example of how you might use Autoinput.state : encoding autocomplete 
-   models for external storage.
-
--}
-encode : Model -> Json.Encode.Value
-encode model =
-    Autoinput.state model |>
-        (\state ->
-            case state of
-                NoInput ->
-                    Json.Encode.object
-                        [ ("constructor", Json.Encode.string "NoInput") ]
-                
-                Entered query ->
-                    Json.Encode.object
-                        [ ("constructor", Json.Encode.string "Entered")
-                        , ("query", Json.Encode.string query)
-                        ]
-
-                Selected id ->
-                    Json.Encode.object
-                        [ ("constructor", Json.Encode.string "Selected")
-                        , ("id", encodeID id)
-                        ]
-        )
+init : Maybe (ID, Tree) -> Model
+init tree =
+    tree
+        |> Maybe.map (Autoinput.preselect)
+        |> Maybe.withDefault Autoinput.empty
 
 
 type Msg
-    = UpdateAutoInput (Autoinput.Msg ID)
+    = UpdateAutoInput Autoinput.Msg
 
 
 update : Msg -> Model -> Model
@@ -83,12 +57,13 @@ view model =
 -- CONSTANTS
 
 
-config : Autoinput.Config Tree
+config : Autoinput.Config (ID, Tree)
 config =
     Autoinput.config
         { howMany = 10
         , search = searchConfig
-        , toString = (\item -> item.commonName ++ " (" ++ item.scientificName ++ ")")
+        , toString = (\(_, item) -> item.commonName ++ " (" ++ item.scientificName ++ ")")
+        , toId = (\(id, _) -> toString id)
         , menuId = "tree-menu"
         , menuItemStyle =
             (\selected ->
@@ -100,8 +75,8 @@ config =
         }
 
 
-searchConfig : String -> Tree -> Bool
-searchConfig q tree =
+searchConfig : String -> (ID, Tree) -> Bool
+searchConfig q (id, tree) =
     tree.commonName
         |> String.toLower
         |> String.contains (String.toLower q)

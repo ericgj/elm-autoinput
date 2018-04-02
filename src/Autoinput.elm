@@ -1,7 +1,7 @@
 module Autoinput
     exposing
-        ( Model
-        , State(NoInput, Selected, Entered)
+        ( Autoinput
+        , State(..)
         , Config
         , Msg
         , preselect
@@ -29,10 +29,12 @@ Configuration and the list of choices are passed in to `update` and `view`,
 but do not form part of the state managed by this library. This ensures that
 your data does not go out of sync with the menu list &mdash; and in fact you can
 change the list as the user input changes, enabling common cases such as
-remote querying.
+remote querying, or using a selection from one autocomplete menu to filter
+another.
 
-Your list of choices are passed in as a `List (id, item)` &mdash; that is, a
-tuple of a unique identifier for the item, and the item itself.
+Your list of choices are passed in as a plain `List`, and you specify how you
+want items displayed and identified in the config. (This differs from previous
+versions of this library).
 
 There is a basic usage [example][] to look at, and more are planned.
 
@@ -44,16 +46,14 @@ implementation is different.
 
 PLEASE NOTE: 
 
-  - The configuration API is a work in progress, but owes a lot to
-    [elm-sortable-table][] conventions.
   - It works, but needs a bit of work still to get to a comfortable UX.
+    It might need a few more input states to feel "smooth". Your feedback is 
+    welcome!
 
 
 [example]: https://github.com/ericgj/elm-autoinput/tree/master/examples/Demo.elm
 
 [elm-autocomplete]: https://github.com/thebritican/elm-autocomplete/tree/master/examples/src/AccessibleExample.elm
-
-[elm-sortable-table]: https://github.com/evancz/elm-sortable-table
 
 # View
 
@@ -73,7 +73,7 @@ PLEASE NOTE:
 
 # State
 
-@docs State, Model, state
+@docs State, Autoinput, state
 
 
 -}
@@ -94,7 +94,7 @@ import Helpers
         , customDecoder
         , mapNeverToMsg
         )
-import Menu as Menu
+import Autoinput.Menu as Menu
 
 
 -- MODEL
@@ -109,43 +109,27 @@ not; otherwise, its appearance and behavior is controlled through the Autoinput
 module).
 
 -}
-type Model id
-    = Model
-        { state : InternalState id
+type Autoinput item
+    = Autoinput
+        { state : State item
         , menu : Menu.Model
         }
 
 
 {-|
 
-Note the internal _input_ state used by this module has more information than
-the externally facing _selection_ State. It distinguishes between pre-selection
-and selection, and retains the query string even after a selection is made.
+The input state. 
+
+Note that the query string is retained as the user selects from the menu; this 
+allows "immediate" selection without clearing the filter.
 
 -}
-type InternalState id
+type State item
     = Initial
-    | Preselecting id
+    | Preselected item
     | Querying String
-    | Selecting String id
+    | Selecting String item
 
-
-{-|
-
-Selection state. Note to get the current selection state from an Autoinput model, 
-use `Autoinput.state model`.
-
-  - `NoInput`: user hasn't entered anything yet or input box is otherwise empty.
-  - `Entered String`: user has entered a query string, but has not made a
-       selection from the menu.
-  - `Selected id`: user has made a selection from the menu, and here is its 
-       `id`. 
-
--}
-type State id
-    = NoInput
-    | Entered String
-    | Selected id
 
 
 {-| 
@@ -159,6 +143,7 @@ type Config item
         { howMany : Int
         , search : String -> item -> Bool
         , toString : item -> String
+        , toId : item -> String
         , input : HtmlAttributeDetails
         , menuId : String
         , menuConfig : Menu.Config item
@@ -170,9 +155,9 @@ type Config item
 Construct an empty model (no input, hidden menu).
 
 -}
-empty : Model id
+empty : Autoinput item
 empty =
-    initInternal Initial
+    init Initial
 
 
 {-| 
@@ -180,9 +165,9 @@ empty =
 Construct a model with an initial selected value.
 
 -}
-preselect : id -> Model id
-preselect id =
-    initInternal (Preselecting id)
+preselect : item -> Autoinput item
+preselect item =
+    init (Preselected item)
 
 
 {-| 
@@ -190,68 +175,71 @@ preselect id =
 Construct a model with an initial query value.
 
 -}
-query : String -> Model id
+query : String -> Autoinput item
 query q =
-    initInternal (Querying q)
+    init (Querying q)
 
 
 {-| 
 
-Construct a model from given State. Useful if you are passing in a previously
-stored state, e.g. loaded from local storage or server.
+Construct a model from given State. 
 
 -}
-init : State id -> Model id
+init : State item -> Autoinput item
 init state =
-    case state of
-        NoInput ->
-            initInternal Initial
-
-        Selected id ->
-            initInternal (Preselecting id)
-
-        Entered q ->
-            initInternal (Querying q)
+    Autoinput { state = state, menu = Menu.empty }
 
 
-initInternal : InternalState id -> Model id
-initInternal state =
-    Model { state = state, menu = Menu.empty }
+{-|
 
-
-{-| 
-
-Get external selection state.  Useful for example if you want to persist
-selection state and load it in (via `init`) at another time.
+Extract the input state from an Autoinput model.
 
 -}
-state : Model id -> State id
-state (Model model) =
+
+state : Autoinput item -> State item
+state (Autoinput model) =
+    model.state
+
+
+{-|
+
+Extract the selected value from an Autoinput model, if it exists.
+
+-}
+toMaybe : Autoinput item -> Maybe item
+toMaybe (Autoinput model) =
     case model.state of
         Initial ->
-            NoInput
+            Nothing
 
-        Preselecting id ->
-            Selected id
+        Preselected item ->
+            Just item
+
+        Querying _ ->
+            Nothing
+
+        Selecting _ item ->
+            Just item
+
+
+setSelected : item -> Autoinput item -> Autoinput item
+setSelected item (Autoinput model) =
+    Autoinput { model | state = setSelectedState item model.state }
+
+setSelectedState : item -> State item -> State item
+setSelectedState item state =
+    case state of
+        Initial ->
+            Selecting "" item
+
+        Preselected _ ->
+            Selecting "" item
 
         Querying query ->
-            Entered query
-
-        Selecting _ id ->
-            Selected id
-
-
-toMaybe : Model id -> Maybe id
-toMaybe (Model model) =
-    case model.state of
-        Preselecting id ->
-            Just id
-
-        Selecting _ id ->
-            Just id
-
-        _ ->
-            Nothing
+            Selecting query item
+        
+        Selecting query _ ->
+            Selecting query item
 
 
 
@@ -261,32 +249,26 @@ toMaybe (Model model) =
 {-|
 
 Internal `Msg` type used by Autoinput. Your update function should wrap msgs
-of this type, with the type of the item `id` as a parameter.
-
-So for instance if the list you pass in to `view` and `update` is 
-`List (Int, String)`, then your wrapped Msg will be something like 
-`UpdateAutoinput (Autoinput.Msg Int)`.  See the `update` example below.
+of this type.
 
 -}
-type Msg id
+type Msg 
     = SetQuery String
     | BrowsePrevItem
     | BrowseNextItem
     | HideMenu
-    | UpdateMenu (Menu.Msg id)
+    | UpdateMenu Menu.Msg
     | NoOp
 
 
 {-|
 
 Handle input. Your application should nest Autoinput messages using `Html.map`. 
-Note that the `Msg` type takes an `id` parameter: the ID type of items in 
-your list (the first element of the tuple).
 
 Note that you pass two pieces of context in to `update`:
 
   - The `Config`,  and
-  - The full list of items, as tuples of `(id, item)`.
+  - The full list of items.
 
 Here is an example:
 
@@ -306,20 +288,20 @@ Here is an example:
     update msg model =
         case msg of
             UpdateAutoInput automsg ->
-                Autoinput.update config things automsg model
+                { model | thing = Autoinput.update config things automsg model }
 
 -}
-update : Config item -> List ( id, item ) -> Msg id -> Model id -> Model id
-update (Config config) items msg (Model model) =
+update : Config item -> List item -> Msg -> Autoinput item -> Autoinput item
+update (Config config) items msg (Autoinput model) =
     let
         query =
-            queryValue config.toString items model.state
+            queryValue config.toString model.state
 
         filteredItems =
             searchItems config.search query items |> List.take config.howMany
 
         updateMenu menumsg menu =
-            Menu.update filteredItems (Model model |> toMaybe) menumsg menu
+            Menu.update config.toId filteredItems (Autoinput model |> toMaybe) menumsg menu
     in
         case msg of
             UpdateMenu menumsg ->
@@ -329,10 +311,10 @@ update (Config config) items msg (Model model) =
 
                     newState =
                         selected
-                            |> Maybe.map (setSelecting model.state)
+                            |> Maybe.map (\item -> setSelectedState item model.state)
                             |> Maybe.withDefault model.state
                 in
-                    Model { model | state = newState, menu = newMenu }
+                    Autoinput { model | state = newState, menu = newMenu }
 
             SetQuery query ->
                 let
@@ -345,19 +327,19 @@ update (Config config) items msg (Model model) =
                         else 
                             Querying query
                 in
-                    Model { model | state = newState, menu = newMenu }
+                    Autoinput { model | state = newState, menu = newMenu }
 
             BrowsePrevItem ->
-                update (Config config) items (UpdateMenu Menu.SelectPrevItem) (Model model)
+                update (Config config) items (UpdateMenu Menu.SelectPrevItem) (Autoinput model)
 
             BrowseNextItem ->
-                update (Config config) items (UpdateMenu Menu.SelectNextItem) (Model model)
+                update (Config config) items (UpdateMenu Menu.SelectNextItem) (Autoinput model)
 
             HideMenu ->
-                update (Config config) items (UpdateMenu Menu.HideMenu) (Model model)
+                update (Config config) items (UpdateMenu Menu.HideMenu) (Autoinput model)
 
             NoOp ->
-                (Model model)
+                (Autoinput model)
 
 
 {-|
@@ -366,11 +348,11 @@ Render the input field and associated menu.
 Note that the same as for `update`, you pass in two pieces of context:
 
   - The `Config` (see below),  and
-  - The full list of items, as tuples of `(id, item)`.
+  - The full list of items.
 
 -}
-view : Config item -> List ( id, item ) -> Model id -> Html (Msg id)
-view (Config config) items (Model model) =
+view : Config item -> List item -> Autoinput item -> Html Msg
+view (Config config) items (Autoinput model) =
     let
         menuConfig =
             Menu.menuAttributes [ Html.Attributes.id config.menuId ] config.menuConfig
@@ -413,7 +395,7 @@ view (Config config) items (Model model) =
             menuItems config.search config.howMany items model.state
 
         val =
-            inputValue config.toString items model.state
+            inputValue config.toString model.state
     in
         div []
             [ input
@@ -438,13 +420,13 @@ view (Config config) items (Model model) =
                        ]
                 )
                 []
-            , viewMenu menuConfig filteredItems (Model model)
+            , viewMenu config.toId menuConfig filteredItems (Autoinput model)
             ]
 
 
-viewMenu : Menu.Config item -> List ( id, item ) -> Model id -> Html (Msg id)
-viewMenu menuConfig items (Model model) =
-    Menu.view menuConfig (Model model |> toMaybe) items model.menu
+viewMenu : (item -> String) -> Menu.Config item -> List item -> Autoinput item -> Html Msg
+viewMenu toId menuConfig items (Autoinput model) =
+    Menu.view toId menuConfig (Autoinput model |> toMaybe) items model.menu
         |> Html.map UpdateMenu
 
 
@@ -452,68 +434,43 @@ viewMenu menuConfig items (Model model) =
 -- HELPERS
 
 
-searchItems : (String -> item -> Bool) -> String -> List ( id, item ) -> List ( id, item )
+searchItems : (String -> item -> Bool) -> String -> List item -> List item
 searchItems keep str items =
     case str of
         "" ->
             []
 
         _ ->
-            List.filter (\( _, item ) -> keep str item) items
+            List.filter (keep str) items
 
 
-findById : id -> List ( id, item ) -> Maybe ( id, item )
-findById id items =
+findById : (item -> String) -> String -> List item -> Maybe item
+findById accessor id items =
     case items of
         [] ->
             Nothing
 
         first :: rest ->
-            if (Tuple.first first) == id then
+            if accessor first == id then
                 Just first
             else
-                findById id rest
+                findById accessor id rest
 
 
-setSelecting : InternalState id -> id -> InternalState id
-setSelecting state id =
-    case state of
-        Initial ->
-            Selecting "" id
-
-        Preselecting _ ->
-            Selecting "" id
-
-        -- should not be able to get here
-        Querying query ->
-            Selecting query id
-
-        Selecting query _ ->
-            Selecting query id
-
-
-selectedItemText : (item -> String) -> List ( id, item ) -> id -> Maybe String
-selectedItemText toString items id =
-    findById id items
-        |> Maybe.map (Tuple.second >> toString)
-
-
-inputValue : (item -> String) -> List ( id, item ) -> InternalState id -> String
-inputValue toString items state =
+inputValue : (item -> String) -> State item -> String
+inputValue toString state =
     case state of
         Initial ->
             ""
 
-        Preselecting id ->
-            selectedItemText toString items id
-                |> Maybe.withDefault ""
+        Preselected item ->
+            toString item
 
         Querying query ->
             query
 
-        Selecting query id ->
-            selectedItemText toString items id
-                |> Maybe.withDefault ""
+        Selecting _ item ->
+            toString item
 
 
 {-|
@@ -528,30 +485,29 @@ the menu choices. This is used in `update`.
 In a nutshell, this is what makes state management tricky in autocomplete.
 
 -}
-queryValue : (item -> String) -> List ( id, item ) -> InternalState id -> String
-queryValue toString items state =
+queryValue : (item -> String) -> State item -> String
+queryValue toString state =
     case state of
         Initial ->
             ""
 
-        Preselecting id ->
-            selectedItemText toString items id
-                |> Maybe.withDefault ""
+        Preselected item ->
+            ""
 
         Querying query ->
             query
 
-        Selecting query id ->
+        Selecting query _ ->
             query
 
 
-menuItems : (String -> item -> Bool) -> Int -> List ( id, item ) -> InternalState id -> List ( id, item )
+menuItems : (String -> item -> Bool) -> Int -> List item -> State item -> List item
 menuItems search howMany items state =
     case state of
         Initial ->
             []
 
-        Preselecting id ->
+        Preselected id ->
             []
 
         Querying query ->
@@ -582,6 +538,7 @@ their names in the menu. We might have a `Config` like this:
             { howMany = 5
             , search = searchNameAndEmail
             , toString = .name
+            , toId = .id
             , menuId = "person-menu"
             , menuItemStyle = menuItem
             }
@@ -604,6 +561,7 @@ You provide the following information:
   - `howMany` &mdash; maximum number of matched items to display in menu
   - `search` &mdash; search function `String -> item -> Bool`
   - `toString` &mdash; how your items should be displayed
+  - `toId` &mdash; how your items should be identified (with a String)
   - `menuId` &mdash; the DOM id of the "menu" element
   - `menuItemStyle` &mdash; how a menu item should be styled depending on if it
      is selected or not.
@@ -616,11 +574,12 @@ config :
     { howMany : Int
     , search : String -> item -> Bool
     , toString : item -> String
+    , toId : item -> String
     , menuId : String
     , menuItemStyle : Bool -> List ( String, String )
     }
     -> Config item
-config { howMany, search, toString, menuId, menuItemStyle } =
+config { howMany, search, toString, toId, menuId, menuItemStyle } =
     let
         menuItem_ selected item =
             { attributes = []
@@ -632,6 +591,7 @@ config { howMany, search, toString, menuId, menuItemStyle } =
             { howMany = howMany
             , search = search
             , toString = toString
+            , toId = toId
             , input = defaultInput
             , menuId = menuId
             , menuConfig = Menu.defaultConfig |> Menu.menuItem menuItem_
@@ -647,14 +607,16 @@ defaultConfig :
     { howMany : Int
     , search : String -> item -> Bool
     , toString : item -> String
+    , toId : item -> String
     , menuId : String
     }
     -> Config item
-defaultConfig { howMany, search, toString, menuId } =
+defaultConfig { howMany, search, toString, toId, menuId } =
     Config
         { howMany = howMany
         , search = search
         , toString = toString
+        , toId = toId
         , input = defaultInput
         , menuId = menuId
         , menuConfig = Menu.defaultConfig
@@ -780,6 +742,7 @@ customConfig :
     { howMany : Int
     , search : String -> item -> Bool
     , toString : item -> String
+    , toId : item -> String
     , input : HtmlAttributeDetails
     , menuId : String
     , menuConfig : Menu.Config item
@@ -787,4 +750,5 @@ customConfig :
     -> Config item
 customConfig c =
     Config c
+
 
