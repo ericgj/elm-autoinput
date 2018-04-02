@@ -242,6 +242,22 @@ setSelectedState item state =
             Selecting query item
 
 
+deselectState : State item -> State item
+deselectState state =
+    case state of
+        Initial ->
+            state
+
+        Preselected _ ->
+            state
+
+        Querying _ ->
+            state
+
+        Selecting query _ ->
+            Querying query
+
+
 
 -- UPDATE
 
@@ -257,6 +273,7 @@ type Msg
     | BrowsePrevItem
     | BrowseNextItem
     | HideMenu
+    | Deselect
     | UpdateMenu Menu.Msg
     | NoOp
 
@@ -338,6 +355,9 @@ update (Config config) items msg (Autoinput model) =
             HideMenu ->
                 update (Config config) items (UpdateMenu Menu.HideMenu) (Autoinput model)
 
+            Deselect ->
+                Autoinput { model | state = deselectState model.state }
+
             NoOp ->
                 (Autoinput model)
 
@@ -371,7 +391,7 @@ view (Config config) items (Autoinput model) =
             else if code == 13 then
                 Ok HideMenu
             else if code == 27 then
-                Ok HideMenu
+                Ok Deselect
             else
                 Err "not handling that key"
 

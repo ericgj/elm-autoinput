@@ -8847,6 +8847,19 @@ var _ericgj$elm_autoinput$Autoinput$query = function (q) {
 	return _ericgj$elm_autoinput$Autoinput$init(
 		_ericgj$elm_autoinput$Autoinput$Querying(q));
 };
+var _ericgj$elm_autoinput$Autoinput$deselectState = function (state) {
+	var _p15 = state;
+	switch (_p15.ctor) {
+		case 'Initial':
+			return state;
+		case 'Preselected':
+			return state;
+		case 'Querying':
+			return state;
+		default:
+			return _ericgj$elm_autoinput$Autoinput$Querying(_p15._0);
+	}
+};
 var _ericgj$elm_autoinput$Autoinput$Preselected = function (a) {
 	return {ctor: 'Preselected', _0: a};
 };
@@ -8859,42 +8872,42 @@ var _ericgj$elm_autoinput$Autoinput$empty = _ericgj$elm_autoinput$Autoinput$init
 var _ericgj$elm_autoinput$Autoinput$Config = function (a) {
 	return {ctor: 'Config', _0: a};
 };
-var _ericgj$elm_autoinput$Autoinput$config = function (_p15) {
-	var _p16 = _p15;
-	var _p17 = _p16.toString;
+var _ericgj$elm_autoinput$Autoinput$config = function (_p16) {
+	var _p17 = _p16;
+	var _p18 = _p17.toString;
 	var menuItem_ = F2(
 		function (selected, item) {
 			return {
 				attributes: {ctor: '[]'},
-				style: _p16.menuItemStyle(selected),
+				style: _p17.menuItemStyle(selected),
 				children: {
 					ctor: '::',
 					_0: _elm_lang$html$Html$text(
-						_p17(item)),
+						_p18(item)),
 					_1: {ctor: '[]'}
 				}
 			};
 		});
 	return _ericgj$elm_autoinput$Autoinput$Config(
 		{
-			howMany: _p16.howMany,
-			search: _p16.search,
-			toString: _p17,
-			toId: _p16.toId,
+			howMany: _p17.howMany,
+			search: _p17.search,
+			toString: _p18,
+			toId: _p17.toId,
 			input: _ericgj$elm_autoinput$Autoinput$defaultInput,
-			menuId: _p16.menuId,
+			menuId: _p17.menuId,
 			menuConfig: A2(_ericgj$elm_autoinput$Autoinput_Menu$menuItem, menuItem_, _ericgj$elm_autoinput$Autoinput_Menu$defaultConfig)
 		});
 };
-var _ericgj$elm_autoinput$Autoinput$defaultConfig = function (_p18) {
-	var _p19 = _p18;
+var _ericgj$elm_autoinput$Autoinput$defaultConfig = function (_p19) {
+	var _p20 = _p19;
 	return _ericgj$elm_autoinput$Autoinput$Config(
-		{howMany: _p19.howMany, search: _p19.search, toString: _p19.toString, toId: _p19.toId, input: _ericgj$elm_autoinput$Autoinput$defaultInput, menuId: _p19.menuId, menuConfig: _ericgj$elm_autoinput$Autoinput_Menu$defaultConfig});
+		{howMany: _p20.howMany, search: _p20.search, toString: _p20.toString, toId: _p20.toId, input: _ericgj$elm_autoinput$Autoinput$defaultInput, menuId: _p20.menuId, menuConfig: _ericgj$elm_autoinput$Autoinput_Menu$defaultConfig});
 };
 var _ericgj$elm_autoinput$Autoinput$inputAttributes = F2(
-	function (attrs, _p20) {
-		var _p21 = _p20;
-		var _p22 = _p21._0;
+	function (attrs, _p21) {
+		var _p22 = _p21;
+		var _p23 = _p22._0;
 		var setAttrs = function (details) {
 			return _elm_lang$core$Native_Utils.update(
 				details,
@@ -8902,15 +8915,15 @@ var _ericgj$elm_autoinput$Autoinput$inputAttributes = F2(
 		};
 		return _ericgj$elm_autoinput$Autoinput$Config(
 			_elm_lang$core$Native_Utils.update(
-				_p22,
+				_p23,
 				{
-					input: setAttrs(_p22.input)
+					input: setAttrs(_p23.input)
 				}));
 	});
 var _ericgj$elm_autoinput$Autoinput$inputStyle = F2(
-	function (styles, _p23) {
-		var _p24 = _p23;
-		var _p25 = _p24._0;
+	function (styles, _p24) {
+		var _p25 = _p24;
+		var _p26 = _p25._0;
 		var setStyle = function (details) {
 			return _elm_lang$core$Native_Utils.update(
 				details,
@@ -8918,50 +8931,50 @@ var _ericgj$elm_autoinput$Autoinput$inputStyle = F2(
 		};
 		return _ericgj$elm_autoinput$Autoinput$Config(
 			_elm_lang$core$Native_Utils.update(
-				_p25,
+				_p26,
 				{
-					input: setStyle(_p25.input)
+					input: setStyle(_p26.input)
 				}));
 	});
 var _ericgj$elm_autoinput$Autoinput$menu = F2(
-	function (m, _p26) {
-		var _p27 = _p26;
+	function (m, _p27) {
+		var _p28 = _p27;
 		return _ericgj$elm_autoinput$Autoinput$Config(
 			_elm_lang$core$Native_Utils.update(
-				_p27._0,
+				_p28._0,
 				{menuConfig: m}));
 	});
 var _ericgj$elm_autoinput$Autoinput$menuItem = F2(
-	function (fn, _p28) {
-		var _p29 = _p28;
-		var _p30 = _p29._0;
+	function (fn, _p29) {
+		var _p30 = _p29;
+		var _p31 = _p30._0;
 		return _ericgj$elm_autoinput$Autoinput$Config(
 			_elm_lang$core$Native_Utils.update(
-				_p30,
+				_p31,
 				{
-					menuConfig: A2(_ericgj$elm_autoinput$Autoinput_Menu$menuItem, fn, _p30.menuConfig)
+					menuConfig: A2(_ericgj$elm_autoinput$Autoinput_Menu$menuItem, fn, _p31.menuConfig)
 				}));
 	});
 var _ericgj$elm_autoinput$Autoinput$menuStyle = F2(
-	function (styles, _p31) {
-		var _p32 = _p31;
-		var _p33 = _p32._0;
+	function (styles, _p32) {
+		var _p33 = _p32;
+		var _p34 = _p33._0;
 		return _ericgj$elm_autoinput$Autoinput$Config(
 			_elm_lang$core$Native_Utils.update(
-				_p33,
+				_p34,
 				{
-					menuConfig: A2(_ericgj$elm_autoinput$Autoinput_Menu$menuStyle, styles, _p33.menuConfig)
+					menuConfig: A2(_ericgj$elm_autoinput$Autoinput_Menu$menuStyle, styles, _p34.menuConfig)
 				}));
 	});
 var _ericgj$elm_autoinput$Autoinput$menuAttributes = F2(
-	function (attrs, _p34) {
-		var _p35 = _p34;
-		var _p36 = _p35._0;
+	function (attrs, _p35) {
+		var _p36 = _p35;
+		var _p37 = _p36._0;
 		return _ericgj$elm_autoinput$Autoinput$Config(
 			_elm_lang$core$Native_Utils.update(
-				_p36,
+				_p37,
 				{
-					menuConfig: A2(_ericgj$elm_autoinput$Autoinput_Menu$menuAttributes, attrs, _p36.menuConfig)
+					menuConfig: A2(_ericgj$elm_autoinput$Autoinput_Menu$menuAttributes, attrs, _p37.menuConfig)
 				}));
 	});
 var _ericgj$elm_autoinput$Autoinput$customConfig = function (c) {
@@ -8972,96 +8985,103 @@ var _ericgj$elm_autoinput$Autoinput$UpdateMenu = function (a) {
 	return {ctor: 'UpdateMenu', _0: a};
 };
 var _ericgj$elm_autoinput$Autoinput$update = F4(
-	function (_p38, items, msg, _p37) {
+	function (_p39, items, msg, _p38) {
 		update:
 		while (true) {
-			var _p39 = _p38;
-			var _p46 = _p39._0;
-			var _p40 = _p37;
-			var _p45 = _p40._0;
-			var query = A2(_ericgj$elm_autoinput$Autoinput$queryValue, _p46.toString, _p45.state);
+			var _p40 = _p39;
+			var _p47 = _p40._0;
+			var _p41 = _p38;
+			var _p46 = _p41._0;
+			var query = A2(_ericgj$elm_autoinput$Autoinput$queryValue, _p47.toString, _p46.state);
 			var filteredItems = A2(
 				_elm_lang$core$List$take,
-				_p46.howMany,
-				A3(_ericgj$elm_autoinput$Autoinput$searchItems, _p46.search, query, items));
+				_p47.howMany,
+				A3(_ericgj$elm_autoinput$Autoinput$searchItems, _p47.search, query, items));
 			var updateMenu = F2(
 				function (menumsg, menu) {
 					return A5(
 						_ericgj$elm_autoinput$Autoinput_Menu$update,
-						_p46.toId,
+						_p47.toId,
 						filteredItems,
 						_ericgj$elm_autoinput$Autoinput$toMaybe(
-							_ericgj$elm_autoinput$Autoinput$Autoinput(_p45)),
+							_ericgj$elm_autoinput$Autoinput$Autoinput(_p46)),
 						menumsg,
 						menu);
 				});
-			var _p41 = msg;
-			switch (_p41.ctor) {
+			var _p42 = msg;
+			switch (_p42.ctor) {
 				case 'UpdateMenu':
-					var _p42 = A2(updateMenu, _p41._0, _p45.menu);
-					var newMenu = _p42._0;
-					var selected = _p42._1;
+					var _p43 = A2(updateMenu, _p42._0, _p46.menu);
+					var newMenu = _p43._0;
+					var selected = _p43._1;
 					var newState = A2(
 						_elm_lang$core$Maybe$withDefault,
-						_p45.state,
+						_p46.state,
 						A2(
 							_elm_lang$core$Maybe$map,
 							function (item) {
-								return A2(_ericgj$elm_autoinput$Autoinput$setSelectedState, item, _p45.state);
+								return A2(_ericgj$elm_autoinput$Autoinput$setSelectedState, item, _p46.state);
 							},
 							selected));
 					return _ericgj$elm_autoinput$Autoinput$Autoinput(
 						_elm_lang$core$Native_Utils.update(
-							_p45,
+							_p46,
 							{state: newState, menu: newMenu}));
 				case 'SetQuery':
-					var _p44 = _p41._0;
-					var newState = _elm_lang$core$Native_Utils.eq(_p44, '') ? _ericgj$elm_autoinput$Autoinput$Initial : _ericgj$elm_autoinput$Autoinput$Querying(_p44);
-					var _p43 = A2(updateMenu, _ericgj$elm_autoinput$Autoinput_Menu$Reset, _p45.menu);
-					var newMenu = _p43._0;
+					var _p45 = _p42._0;
+					var newState = _elm_lang$core$Native_Utils.eq(_p45, '') ? _ericgj$elm_autoinput$Autoinput$Initial : _ericgj$elm_autoinput$Autoinput$Querying(_p45);
+					var _p44 = A2(updateMenu, _ericgj$elm_autoinput$Autoinput_Menu$Reset, _p46.menu);
+					var newMenu = _p44._0;
 					return _ericgj$elm_autoinput$Autoinput$Autoinput(
 						_elm_lang$core$Native_Utils.update(
-							_p45,
+							_p46,
 							{state: newState, menu: newMenu}));
 				case 'BrowsePrevItem':
-					var _v24 = _ericgj$elm_autoinput$Autoinput$Config(_p46),
-						_v25 = items,
-						_v26 = _ericgj$elm_autoinput$Autoinput$UpdateMenu(_ericgj$elm_autoinput$Autoinput_Menu$SelectPrevItem),
-						_v27 = _ericgj$elm_autoinput$Autoinput$Autoinput(_p45);
-					_p38 = _v24;
-					items = _v25;
-					msg = _v26;
-					_p37 = _v27;
+					var _v25 = _ericgj$elm_autoinput$Autoinput$Config(_p47),
+						_v26 = items,
+						_v27 = _ericgj$elm_autoinput$Autoinput$UpdateMenu(_ericgj$elm_autoinput$Autoinput_Menu$SelectPrevItem),
+						_v28 = _ericgj$elm_autoinput$Autoinput$Autoinput(_p46);
+					_p39 = _v25;
+					items = _v26;
+					msg = _v27;
+					_p38 = _v28;
 					continue update;
 				case 'BrowseNextItem':
-					var _v28 = _ericgj$elm_autoinput$Autoinput$Config(_p46),
-						_v29 = items,
-						_v30 = _ericgj$elm_autoinput$Autoinput$UpdateMenu(_ericgj$elm_autoinput$Autoinput_Menu$SelectNextItem),
-						_v31 = _ericgj$elm_autoinput$Autoinput$Autoinput(_p45);
-					_p38 = _v28;
-					items = _v29;
-					msg = _v30;
-					_p37 = _v31;
+					var _v29 = _ericgj$elm_autoinput$Autoinput$Config(_p47),
+						_v30 = items,
+						_v31 = _ericgj$elm_autoinput$Autoinput$UpdateMenu(_ericgj$elm_autoinput$Autoinput_Menu$SelectNextItem),
+						_v32 = _ericgj$elm_autoinput$Autoinput$Autoinput(_p46);
+					_p39 = _v29;
+					items = _v30;
+					msg = _v31;
+					_p38 = _v32;
 					continue update;
 				case 'HideMenu':
-					var _v32 = _ericgj$elm_autoinput$Autoinput$Config(_p46),
-						_v33 = items,
-						_v34 = _ericgj$elm_autoinput$Autoinput$UpdateMenu(_ericgj$elm_autoinput$Autoinput_Menu$HideMenu),
-						_v35 = _ericgj$elm_autoinput$Autoinput$Autoinput(_p45);
-					_p38 = _v32;
-					items = _v33;
-					msg = _v34;
-					_p37 = _v35;
+					var _v33 = _ericgj$elm_autoinput$Autoinput$Config(_p47),
+						_v34 = items,
+						_v35 = _ericgj$elm_autoinput$Autoinput$UpdateMenu(_ericgj$elm_autoinput$Autoinput_Menu$HideMenu),
+						_v36 = _ericgj$elm_autoinput$Autoinput$Autoinput(_p46);
+					_p39 = _v33;
+					items = _v34;
+					msg = _v35;
+					_p38 = _v36;
 					continue update;
+				case 'Deselect':
+					return _ericgj$elm_autoinput$Autoinput$Autoinput(
+						_elm_lang$core$Native_Utils.update(
+							_p46,
+							{
+								state: _ericgj$elm_autoinput$Autoinput$deselectState(_p46.state)
+							}));
 				default:
-					return _ericgj$elm_autoinput$Autoinput$Autoinput(_p45);
+					return _ericgj$elm_autoinput$Autoinput$Autoinput(_p46);
 			}
 		}
 	});
 var _ericgj$elm_autoinput$Autoinput$viewMenu = F4(
-	function (toId, menuConfig, items, _p47) {
-		var _p48 = _p47;
-		var _p49 = _p48._0;
+	function (toId, menuConfig, items, _p48) {
+		var _p49 = _p48;
+		var _p50 = _p49._0;
 		return A2(
 			_elm_lang$html$Html$map,
 			_ericgj$elm_autoinput$Autoinput$UpdateMenu,
@@ -9070,10 +9090,11 @@ var _ericgj$elm_autoinput$Autoinput$viewMenu = F4(
 				toId,
 				menuConfig,
 				_ericgj$elm_autoinput$Autoinput$toMaybe(
-					_ericgj$elm_autoinput$Autoinput$Autoinput(_p49)),
+					_ericgj$elm_autoinput$Autoinput$Autoinput(_p50)),
 				items,
-				_p49.menu));
+				_p50.menu));
 	});
+var _ericgj$elm_autoinput$Autoinput$Deselect = {ctor: 'Deselect'};
 var _ericgj$elm_autoinput$Autoinput$HideMenu = {ctor: 'HideMenu'};
 var _ericgj$elm_autoinput$Autoinput$BrowseNextItem = {ctor: 'BrowseNextItem'};
 var _ericgj$elm_autoinput$Autoinput$BrowsePrevItem = {ctor: 'BrowsePrevItem'};
@@ -9081,13 +9102,13 @@ var _ericgj$elm_autoinput$Autoinput$SetQuery = function (a) {
 	return {ctor: 'SetQuery', _0: a};
 };
 var _ericgj$elm_autoinput$Autoinput$view = F3(
-	function (_p51, items, _p50) {
-		var _p52 = _p51;
-		var _p55 = _p52._0;
-		var _p53 = _p50;
-		var _p54 = _p53._0;
-		var val = A2(_ericgj$elm_autoinput$Autoinput$inputValue, _p55.toString, _p54.state);
-		var filteredItems = A4(_ericgj$elm_autoinput$Autoinput$menuItems, _p55.search, _p55.howMany, items, _p54.state);
+	function (_p52, items, _p51) {
+		var _p53 = _p52;
+		var _p56 = _p53._0;
+		var _p54 = _p51;
+		var _p55 = _p54._0;
+		var val = A2(_ericgj$elm_autoinput$Autoinput$inputValue, _p56.toString, _p55.state);
+		var filteredItems = A4(_ericgj$elm_autoinput$Autoinput$menuItems, _p56.search, _p56.howMany, items, _p55.state);
 		var relatedTargetId = A2(
 			_elm_lang$core$Json_Decode$at,
 			{
@@ -9107,11 +9128,11 @@ var _ericgj$elm_autoinput$Autoinput$view = F3(
 				_elm_lang$core$Json_Decode$map,
 				_elm_lang$core$Maybe$map(
 					function (id) {
-						return _elm_lang$core$Native_Utils.eq(id, _p55.menuId) ? _ericgj$elm_autoinput$Autoinput$NoOp : _ericgj$elm_autoinput$Autoinput$HideMenu;
+						return _elm_lang$core$Native_Utils.eq(id, _p56.menuId) ? _ericgj$elm_autoinput$Autoinput$NoOp : _ericgj$elm_autoinput$Autoinput$HideMenu;
 					}),
 				_elm_lang$core$Json_Decode$maybe(relatedTargetId)));
 		var keyResult = function (code) {
-			return _elm_lang$core$Native_Utils.eq(code, 38) ? _elm_lang$core$Result$Ok(_ericgj$elm_autoinput$Autoinput$BrowsePrevItem) : (_elm_lang$core$Native_Utils.eq(code, 40) ? _elm_lang$core$Result$Ok(_ericgj$elm_autoinput$Autoinput$BrowseNextItem) : (_elm_lang$core$Native_Utils.eq(code, 13) ? _elm_lang$core$Result$Ok(_ericgj$elm_autoinput$Autoinput$HideMenu) : (_elm_lang$core$Native_Utils.eq(code, 27) ? _elm_lang$core$Result$Ok(_ericgj$elm_autoinput$Autoinput$HideMenu) : _elm_lang$core$Result$Err('not handling that key'))));
+			return _elm_lang$core$Native_Utils.eq(code, 38) ? _elm_lang$core$Result$Ok(_ericgj$elm_autoinput$Autoinput$BrowsePrevItem) : (_elm_lang$core$Native_Utils.eq(code, 40) ? _elm_lang$core$Result$Ok(_ericgj$elm_autoinput$Autoinput$BrowseNextItem) : (_elm_lang$core$Native_Utils.eq(code, 13) ? _elm_lang$core$Result$Ok(_ericgj$elm_autoinput$Autoinput$HideMenu) : (_elm_lang$core$Native_Utils.eq(code, 27) ? _elm_lang$core$Result$Ok(_ericgj$elm_autoinput$Autoinput$Deselect) : _elm_lang$core$Result$Err('not handling that key'))));
 		};
 		var keyDecoder = A2(_ericgj$elm_autoinput$Helpers$customDecoder, keyResult, _elm_lang$html$Html_Events$keyCode);
 		var preventDefault = {preventDefault: true, stopPropagation: false};
@@ -9119,10 +9140,10 @@ var _ericgj$elm_autoinput$Autoinput$view = F3(
 			_ericgj$elm_autoinput$Autoinput_Menu$menuAttributes,
 			{
 				ctor: '::',
-				_0: _elm_lang$html$Html_Attributes$id(_p55.menuId),
+				_0: _elm_lang$html$Html_Attributes$id(_p56.menuId),
 				_1: {ctor: '[]'}
 			},
-			_p55.menuConfig);
+			_p56.menuConfig);
 		return A2(
 			_elm_lang$html$Html$div,
 			{ctor: '[]'},
@@ -9135,12 +9156,12 @@ var _ericgj$elm_autoinput$Autoinput$view = F3(
 						A2(
 							_elm_lang$core$List$map,
 							_ericgj$elm_autoinput$Helpers$mapNeverToMsg(_ericgj$elm_autoinput$Autoinput$NoOp),
-							_p55.input.attributes),
+							_p56.input.attributes),
 						A2(
 							_elm_lang$core$Basics_ops['++'],
 							{
 								ctor: '::',
-								_0: _elm_lang$html$Html_Attributes$style(_p55.input.style),
+								_0: _elm_lang$html$Html_Attributes$style(_p56.input.style),
 								_1: {ctor: '[]'}
 							},
 							{
@@ -9160,7 +9181,7 @@ var _ericgj$elm_autoinput$Autoinput$view = F3(
 												_0: _elm_lang$html$Html_Attributes$autocomplete(false),
 												_1: {
 													ctor: '::',
-													_0: A2(_elm_lang$html$Html_Attributes$attribute, 'aria-owns', _p55.menuId),
+													_0: A2(_elm_lang$html$Html_Attributes$attribute, 'aria-owns', _p56.menuId),
 													_1: {
 														ctor: '::',
 														_0: A2(
@@ -9168,7 +9189,7 @@ var _ericgj$elm_autoinput$Autoinput$view = F3(
 															'aria-expanded',
 															_elm_lang$core$String$toLower(
 																_elm_lang$core$Basics$toString(
-																	_ericgj$elm_autoinput$Autoinput_Menu$visible(_p54.menu)))),
+																	_ericgj$elm_autoinput$Autoinput_Menu$visible(_p55.menu)))),
 														_1: {
 															ctor: '::',
 															_0: A2(
@@ -9176,7 +9197,7 @@ var _ericgj$elm_autoinput$Autoinput$view = F3(
 																'aria-haspopup',
 																_elm_lang$core$String$toLower(
 																	_elm_lang$core$Basics$toString(
-																		_ericgj$elm_autoinput$Autoinput_Menu$visible(_p54.menu)))),
+																		_ericgj$elm_autoinput$Autoinput_Menu$visible(_p55.menu)))),
 															_1: {
 																ctor: '::',
 																_0: A2(_elm_lang$html$Html_Attributes$attribute, 'role', 'combobox'),
@@ -9199,10 +9220,10 @@ var _ericgj$elm_autoinput$Autoinput$view = F3(
 					ctor: '::',
 					_0: A4(
 						_ericgj$elm_autoinput$Autoinput$viewMenu,
-						_p55.toId,
+						_p56.toId,
 						menuConfig,
 						filteredItems,
-						_ericgj$elm_autoinput$Autoinput$Autoinput(_p54)),
+						_ericgj$elm_autoinput$Autoinput$Autoinput(_p55)),
 					_1: {ctor: '[]'}
 				}
 			});
