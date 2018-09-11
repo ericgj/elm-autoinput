@@ -1,9 +1,9 @@
-module Helpers exposing (..)
+module Helpers exposing (HtmlAttributeDetails, HtmlDetails, customDecoder, mapNeverToMsg, nullAttribute)
 
-import Json.Decode as JD
-import Json.Encode as JE
 import Html exposing (Attribute, Html)
 import Html.Attributes exposing (..)
+import Json.Decode as JD
+import Json.Encode as JE
 
 
 type alias HtmlAttributeDetails =
@@ -35,7 +35,7 @@ customDecoder f d =
                 Err e ->
                     JD.fail e
     in
-        JD.map f d |> JD.andThen resultDecoder
+    JD.map f d |> JD.andThen resultDecoder
 
 
 mapNeverToMsg : msg -> Attribute Never -> Attribute msg
