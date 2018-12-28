@@ -242,6 +242,11 @@ setSelectedState item state =
             Selecting query item
 
 
+deselect : Autoinput item -> Autoinput item 
+deselect (Autoinput model) =
+    Autoinput { model | state = deselectState model.state }
+
+
 deselectState : State item -> State item
 deselectState state =
     case state of
@@ -309,7 +314,33 @@ Here is an example:
 
 -}
 update : Config item -> List item -> Msg -> Autoinput item -> Autoinput item
-update (Config config) items msg (Autoinput model) =
+update config items msg model =
+    case msg of
+        UpdateMenu menumsg ->
+            updateMenu config items menumsg model
+
+        SetQuery query ->
+            updateSetQuery config items query model
+
+        BrowsePrevItem ->
+            updateMenu config items Menu.SelectPrevItem model
+
+        BrowseNextItem ->
+            updateMenu config items Menu.SelectNextItem model
+
+        HideMenu ->
+            updateMenu config items Menu.HideMenu model
+
+        Deselect ->
+            updateMenu config items Menu.HideMenu model
+                |> deselect
+
+        NoOp ->
+            model
+
+
+updateMenu : Config item -> List item -> Menu.Msg -> Autoinput item -> Autoinput item
+updateMenu (Config config) items menumsg (Autoinput model) =
     let
         query =
             queryValue config.toString model.state
@@ -317,49 +348,43 @@ update (Config config) items msg (Autoinput model) =
         filteredItems =
             searchItems config.search query items |> List.take config.howMany
 
-        updateMenu menumsg menu =
-            Menu.update config.toId filteredItems (Autoinput model |> toMaybe) menumsg menu
+        ( newMenu, selected ) =
+            Menu.update 
+                config.toId 
+                filteredItems 
+                (Autoinput model |> toMaybe) 
+                menumsg 
+                model.menu
+
+        newState =
+            selected
+                |> Maybe.map (\item -> setSelectedState item model.state)
+                |> Maybe.withDefault model.state
     in
-        case msg of
-            UpdateMenu menumsg ->
-                let
-                    ( newMenu, selected ) =
-                        updateMenu menumsg model.menu
+    Autoinput { model | state = newState, menu = newMenu }
 
-                    newState =
-                        selected
-                            |> Maybe.map (\item -> setSelectedState item model.state)
-                            |> Maybe.withDefault model.state
-                in
-                    Autoinput { model | state = newState, menu = newMenu }
 
-            SetQuery query ->
-                let
-                    ( newMenu, _ ) =
-                        updateMenu Menu.Reset model.menu
+updateSetQuery : Config item -> List item -> String -> Autoinput item -> Autoinput item
+updateSetQuery (Config config) items query (Autoinput model) =
+    let
+        filteredItems =
+            searchItems config.search query items |> List.take config.howMany
 
-                    newState =
-                        if query == "" then 
-                            Initial 
-                        else 
-                            Querying query
-                in
-                    Autoinput { model | state = newState, menu = newMenu }
+        ( newMenu, _ ) =
+            Menu.update 
+                config.toId 
+                filteredItems 
+                (Autoinput model |> toMaybe) 
+                Menu.Reset 
+                model.menu
 
-            BrowsePrevItem ->
-                update (Config config) items (UpdateMenu Menu.SelectPrevItem) (Autoinput model)
-
-            BrowseNextItem ->
-                update (Config config) items (UpdateMenu Menu.SelectNextItem) (Autoinput model)
-
-            HideMenu ->
-                update (Config config) items (UpdateMenu Menu.HideMenu) (Autoinput model)
-
-            Deselect ->
-                Autoinput { model | state = deselectState model.state }
-
-            NoOp ->
-                (Autoinput model)
+        newState =
+            if query == "" then 
+                Initial 
+            else 
+                Querying query
+    in
+    Autoinput { model | state = newState, menu = newMenu }
 
 
 {-|
