@@ -133,14 +133,14 @@ type State id
 {-| Configuration passed to both `view` and `update`. See below for how to specify
 `Config`.
 -}
-type Config item
+type Config id item
     = Config
         { howMany : Int
         , search : String -> item -> Bool
         , toString : item -> String
         , input : HtmlAttributeDetails
         , menuId : String
-        , menuConfig : Menu.Config item
+        , menuConfig : Menu.Config id item
         }
 
 
@@ -269,7 +269,7 @@ Here is an example:
                 Autoinput.update config things automsg model
 
 -}
-update : Config item -> List ( id, item ) -> Msg id -> Model id -> Model id
+update : Config id item -> List ( id, item ) -> Msg id -> Model id -> Model id
 update (Config config) items msg (Model model) =
     let
         query =
@@ -329,7 +329,7 @@ Note that the same as for `update`, you pass in two pieces of context:
   - The full list of items, as tuples of `(id, item)`.
 
 -}
-view : Config item -> List ( id, item ) -> Model id -> Html (Msg id)
+view : Config id item -> List ( id, item ) -> Model id -> Html (Msg id)
 view (Config config) items (Model model) =
     let
         menuConfig =
@@ -407,7 +407,7 @@ view (Config config) items (Model model) =
         ]
 
 
-viewMenu : Menu.Config item -> List ( id, item ) -> Model id -> Html (Msg id)
+viewMenu : Menu.Config id item -> List ( id, item ) -> Model id -> Html (Msg id)
 viewMenu menuConfig items (Model model) =
     Menu.view menuConfig (Model model |> toMaybe) items model.menu
         |> Html.map UpdateMenu
@@ -580,11 +580,12 @@ config :
     { howMany : Int
     , search : String -> item -> Bool
     , toString : item -> String
+    , idToString : id -> String
     , menuId : String
     , menuItemStyle : Bool -> List ( String, String )
     }
-    -> Config item
-config { howMany, search, toString, menuId, menuItemStyle } =
+    -> Config id item
+config { howMany, search, toString, idToString, menuId, menuItemStyle } =
     let
         menuItem_ selected item =
             { attributes = []
@@ -598,7 +599,7 @@ config { howMany, search, toString, menuId, menuItemStyle } =
         , toString = toString
         , input = defaultInput
         , menuId = menuId
-        , menuConfig = Menu.defaultConfig |> Menu.menuItem menuItem_
+        , menuConfig = Menu.defaultConfig idToString toString |> Menu.menuItem menuItem_
         }
 
 
@@ -608,17 +609,18 @@ defaultConfig :
     { howMany : Int
     , search : String -> item -> Bool
     , toString : item -> String
+    , idToString : id -> String
     , menuId : String
     }
-    -> Config item
-defaultConfig { howMany, search, toString, menuId } =
+    -> Config id item
+defaultConfig { howMany, search, toString, idToString, menuId } =
     Config
         { howMany = howMany
         , search = search
         , toString = toString
         , input = defaultInput
         , menuId = menuId
-        , menuConfig = Menu.defaultConfig
+        , menuConfig = Menu.defaultConfig idToString toString
         }
 
 
@@ -629,7 +631,7 @@ defaultConfig { howMany, search, toString, menuId } =
             |> inputAttributes [ class "autoinput" ]
 
 -}
-inputAttributes : List (Html.Attribute Never) -> Config item -> Config item
+inputAttributes : List (Html.Attribute Never) -> Config id item -> Config id item
 inputAttributes attrs (Config c) =
     let
         setAttrs details =
@@ -645,7 +647,7 @@ inputAttributes attrs (Config c) =
             |> inputStyle [ ( "border-radius", "5px" ) ]
 
 -}
-inputStyle : List ( String, String ) -> Config item -> Config item
+inputStyle : List ( String, String ) -> Config id item -> Config id item
 inputStyle styles (Config c) =
     let
         setStyle details =
@@ -658,7 +660,7 @@ inputStyle styles (Config c) =
 `menuItem` (for individual menu items), or `menuStyle` and `menuAttributes`
 (for the menu itself).
 -}
-menu : Menu.Config item -> Config item -> Config item
+menu : Menu.Config id item -> Config id item -> Config id item
 menu m (Config c) =
     Config { c | menuConfig = m }
 
@@ -686,7 +688,7 @@ in
 ```
 
 -}
-menuItem : (Bool -> item -> HtmlDetails) -> Config item -> Config item
+menuItem : (Bool -> item -> HtmlDetails) -> Config id item -> Config id item
 menuItem fn (Config c) =
     Config { c | menuConfig = Menu.menuItem fn c.menuConfig }
 
@@ -697,7 +699,7 @@ menuItem fn (Config c) =
         |> menuStyle [ ( "background-color", "#EEE" ) ]
 
 -}
-menuStyle : List ( String, String ) -> Config item -> Config item
+menuStyle : List ( String, String ) -> Config id item -> Config id item
 menuStyle styles (Config c) =
     Config { c | menuConfig = Menu.menuStyle styles c.menuConfig }
 
@@ -708,7 +710,7 @@ menuStyle styles (Config c) =
         |> menuAttributes [ class "autocomplete-menu" ]
 
 -}
-menuAttributes : List (Html.Attribute Never) -> Config item -> Config item
+menuAttributes : List (Html.Attribute Never) -> Config id item -> Config id item
 menuAttributes attrs (Config c) =
     Config { c | menuConfig = Menu.menuAttributes attrs c.menuConfig }
 
@@ -727,8 +729,8 @@ customConfig :
     , toString : item -> String
     , input : HtmlAttributeDetails
     , menuId : String
-    , menuConfig : Menu.Config item
+    , menuConfig : Menu.Config id item
     }
-    -> Config item
+    -> Config id item
 customConfig c =
     Config c

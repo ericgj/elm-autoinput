@@ -87,12 +87,13 @@ view model =
 -- CONSTANTS
 
 
-config : Autoinput.Config Tree
+config : Autoinput.Config Int Tree
 config =
     Autoinput.config
         { howMany = 10
         , search = searchConfig
         , toString = \item -> item.commonName ++ " (" ++ item.scientificName ++ ")"
+        , idToString = toString
         , menuId = "tree-menu"
         , menuItemStyle =
             \selected ->

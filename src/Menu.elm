@@ -36,10 +36,11 @@ type Model
     = Model { visible : Bool }
 
 
-type Config item
+type Config id item
     = Config
         { ul : HtmlDetails
         , li : Bool -> item -> HtmlDetails
+        , idToString : id -> String
         }
 
 
@@ -189,11 +190,11 @@ findById id items =
 -- VIEW
 
 
-view : Config item -> Maybe id -> List ( id, item ) -> Model -> Html (Msg id)
+view : Config id item -> Maybe id -> List ( id, item ) -> Model -> Html (Msg id)
 view (Config config) selected items (Model model) =
     let
         viewItemWithKey ( id, item ) =
-            ( toString id
+            ( config.idToString id
             , viewItem (Config config) selected ( id, item ) (Model model)
             )
 
@@ -214,7 +215,7 @@ view (Config config) selected items (Model model) =
         text ""
 
 
-viewItem : Config item -> Maybe id -> ( id, item ) -> Model -> Html (Msg id)
+viewItem : Config id item -> Maybe id -> ( id, item ) -> Model -> Html (Msg id)
 viewItem (Config config) selected ( id, item ) (Model model) =
     let
         listItemData =
@@ -236,22 +237,22 @@ viewItem (Config config) selected ( id, item ) (Model model) =
 -- CONFIG
 
 
-config : { ul : HtmlDetails, li : Bool -> item -> HtmlDetails } -> Config item
+config : { ul : HtmlDetails, li : Bool -> item -> HtmlDetails, idToString : id -> String } -> Config id item
 config c =
     Config c
 
 
-menuItem : (Bool -> item -> HtmlDetails) -> Config item -> Config item
+menuItem : (Bool -> item -> HtmlDetails) -> Config id item -> Config id item
 menuItem fn (Config c) =
     Config { c | li = fn }
 
 
-menu : HtmlDetails -> Config item -> Config item
+menu : HtmlDetails -> Config id item -> Config id item
 menu details (Config c) =
     Config { c | ul = details }
 
 
-menuAttributes : List (Html.Attribute Never) -> Config item -> Config item
+menuAttributes : List (Html.Attribute Never) -> Config id item -> Config id item
 menuAttributes attrs (Config c) =
     let
         setAttrs details =
@@ -260,7 +261,7 @@ menuAttributes attrs (Config c) =
     Config { c | ul = setAttrs c.ul }
 
 
-menuStyle : List ( String, String ) -> Config item -> Config item
+menuStyle : List ( String, String ) -> Config id item -> Config id item
 menuStyle styles (Config c) =
     let
         setStyle details =
@@ -269,11 +270,12 @@ menuStyle styles (Config c) =
     Config { c | ul = setStyle c.ul }
 
 
-defaultConfig : Config item
-defaultConfig =
+defaultConfig : (id -> String) -> (item -> String) -> Config id item
+defaultConfig idToString itemToString =
     config
         { ul = { attributes = [], style = minimalMenuStyle, children = [] }
-        , li = minimalMenuItem
+        , li = minimalMenuItem itemToString
+        , idToString = idToString
         }
 
 
@@ -286,11 +288,11 @@ minimalMenuStyle =
     ]
 
 
-minimalMenuItem : Bool -> item -> HtmlDetails
-minimalMenuItem selected item =
+minimalMenuItem : (item -> String) -> Bool -> item -> HtmlDetails
+minimalMenuItem itemToString selected item =
     { attributes = []
     , style = []
-    , children = [ text (toString item) ]
+    , children = [ text (itemToString item) ]
     }
 
 
