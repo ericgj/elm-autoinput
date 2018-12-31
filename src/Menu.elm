@@ -45,8 +45,8 @@ type Config id item
 
 
 init : Bool -> Model
-init visible =
-    Model { visible = visible }
+init visible_ =
+    Model { visible = visible_ }
 
 
 empty : Model
@@ -191,17 +191,17 @@ findById id items =
 
 
 view : Config id item -> Maybe id -> List ( id, item ) -> Model -> Html (Msg id)
-view (Config config) selected items (Model model) =
+view (Config config_) selected items (Model model) =
     let
         viewItemWithKey ( id, item ) =
-            ( config.idToString id
-            , viewItem (Config config) selected ( id, item ) (Model model)
+            ( config_.idToString id
+            , viewItem (Config config_) selected ( id, item ) (Model model)
             )
 
         viewMenu =
             Html.Keyed.ul
-                (List.map (mapNeverToMsg NoOp) config.ul.attributes
-                    ++ [ style config.ul.style ]
+                (List.map (mapNeverToMsg NoOp) config_.ul.attributes
+                    ++ List.map (\( attr, val ) -> style attr val) config_.ul.style
                     ++ [ tabindex 0
                        , onBlur HideMenu
                        ]
@@ -216,10 +216,10 @@ view (Config config) selected items (Model model) =
 
 
 viewItem : Config id item -> Maybe id -> ( id, item ) -> Model -> Html (Msg id)
-viewItem (Config config) selected ( id, item ) (Model model) =
+viewItem (Config config_) selected ( id, item ) (Model model) =
     let
         listItemData =
-            config.li (isSelected selected) item
+            config_.li (isSelected selected) item
 
         isSelected =
             Maybe.map (\id_ -> id == id_)
@@ -227,7 +227,7 @@ viewItem (Config config) selected ( id, item ) (Model model) =
     in
     Html.li
         (List.map (mapNeverToMsg NoOp) listItemData.attributes
-            ++ [ style listItemData.style ]
+            ++ List.map (\( attr, val ) -> style attr val) listItemData.style
             ++ [ onClick (SelectItem id) ]
         )
         (List.map (Html.map (\_ -> NoOp)) listItemData.children)

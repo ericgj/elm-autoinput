@@ -1,16 +1,17 @@
 module Demo exposing (Model, Msg(..), config, encode, init, main, searchConfig, update, view)
 
 import Autoinput exposing (State(..))
+import Browser exposing (sandbox)
 import Html exposing (..)
 import Html.Attributes exposing (style)
 import Json.Encode
 import Trees exposing (ID, Tree, encodeID, trees)
 
 
-main : Program Never Model Msg
+main : Program () Model Msg
 main =
-    beginnerProgram
-        { model = init
+    sandbox
+        { init = init
         , view = view
         , update = update
         }
@@ -71,13 +72,13 @@ update msg model =
 view : Model -> Html Msg
 view model =
     div []
-        [ div [ style [ ( "display", "inline-block" ), ( "width", "300px" ) ] ]
+        [ div [ style "display" "inline-block", style "width" "300px" ]
             [ label [] [ text "Select the tree species" ]
             , Autoinput.view config trees model |> Html.map UpdateAutoInput
             ]
-        , div [ style [ ( "display", "inline-block" ), ( "width", "300px" ) ] ]
-            [ pre [ style [ ( "color", "red" ) ] ]
-                [ text <| toString <| Autoinput.state model
+        , div [ style "display" "inline-block", style "width" "300px" ]
+            [ pre [ style "color" "red" ]
+                [ text <| Debug.toString <| Autoinput.state model
                 ]
             ]
         ]
@@ -93,7 +94,7 @@ config =
         { howMany = 10
         , search = searchConfig
         , toString = \item -> item.commonName ++ " (" ++ item.scientificName ++ ")"
-        , idToString = toString
+        , idToString = String.fromInt
         , menuId = "tree-menu"
         , menuItemStyle =
             \selected ->

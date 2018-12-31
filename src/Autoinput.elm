@@ -70,13 +70,14 @@ import Helpers
     exposing
         ( HtmlAttributeDetails
         , HtmlDetails
+        , boolToString
         , customDecoder
         , mapNeverToMsg
         , nullAttribute
         )
 import Html exposing (..)
 import Html.Attributes exposing (..)
-import Html.Events exposing (keyCode, on, onInput, onWithOptions)
+import Html.Events exposing (keyCode, on, onInput, preventDefaultOn)
 import Json.Decode as JD
 import Json.Encode as JE
 import List
@@ -169,8 +170,8 @@ query q =
 stored state, e.g. loaded from local storage or server.
 -}
 init : State id -> Model id
-init state =
-    case state of
+init state_ =
+    case state_ of
         NoInput ->
             initInternal Initial
 
@@ -182,8 +183,8 @@ init state =
 
 
 initInternal : InternalState id -> Model id
-initInternal state =
-    Model { state = state, menu = Menu.empty }
+initInternal state_ =
+    Model { state = state_, menu = Menu.empty }
 
 
 {-| Get external selection state. Useful for example if you want to persist
@@ -198,8 +199,8 @@ state (Model model) =
         Preselecting id ->
             Selected id
 
-        Querying query ->
-            Entered query
+        Querying query_ ->
+            Entered query_
 
         Selecting _ id ->
             Selected id
@@ -270,16 +271,16 @@ Here is an example:
 
 -}
 update : Config id item -> List ( id, item ) -> Msg id -> Model id -> Model id
-update (Config config) items msg (Model model) =
+update (Config config_) items msg (Model model) =
     let
-        query =
-            queryValue config.toString items model.state
+        query_ =
+            queryValue config_.toString items model.state
 
         filteredItems =
-            searchItems config.search query items |> List.take config.howMany
+            searchItems config_.search query_ items |> List.take config_.howMany
 
-        updateMenu menumsg menu =
-            Menu.update filteredItems (Model model |> toMaybe) menumsg menu
+        updateMenu menumsg menu_ =
+            Menu.update filteredItems (Model model |> toMaybe) menumsg menu_
     in
     case msg of
         UpdateMenu menumsg ->
@@ -294,28 +295,28 @@ update (Config config) items msg (Model model) =
             in
             Model { model | state = newState, menu = newMenu }
 
-        SetQuery query ->
+        SetQuery newQuery ->
             let
                 ( newMenu, _ ) =
                     updateMenu Menu.Reset model.menu
 
                 newState =
-                    if query == "" then
+                    if newQuery == "" then
                         Initial
 
                     else
-                        Querying query
+                        Querying newQuery
             in
             Model { model | state = newState, menu = newMenu }
 
         BrowsePrevItem ->
-            update (Config config) items (UpdateMenu Menu.SelectPrevItem) (Model model)
+            update (Config config_) items (UpdateMenu Menu.SelectPrevItem) (Model model)
 
         BrowseNextItem ->
-            update (Config config) items (UpdateMenu Menu.SelectNextItem) (Model model)
+            update (Config config_) items (UpdateMenu Menu.SelectNextItem) (Model model)
 
         HideMenu ->
-            update (Config config) items (UpdateMenu Menu.HideMenu) (Model model)
+            update (Config config_) items (UpdateMenu Menu.HideMenu) (Model model)
 
         NoOp ->
             Model model
@@ -330,13 +331,10 @@ Note that the same as for `update`, you pass in two pieces of context:
 
 -}
 view : Config id item -> List ( id, item ) -> Model id -> Html (Msg id)
-view (Config config) items (Model model) =
+view (Config config_) items (Model model) =
     let
         menuConfig =
-            Menu.menuAttributes [ Html.Attributes.id config.menuId ] config.menuConfig
-
-        preventDefault =
-            { preventDefault = True, stopPropagation = False }
+            Menu.menuAttributes [ Html.Attributes.id config_.menuId ] config_.menuConfig
 
         keyDecoder =
             customDecoder keyResult keyCode
@@ -362,7 +360,7 @@ view (Config config) items (Model model) =
                 |> JD.map
                     (Maybe.map
                         (\id ->
-                            if id == config.menuId then
+                            if id == config_.menuId then
                                 NoOp
 
                             else
@@ -375,28 +373,28 @@ view (Config config) items (Model model) =
             JD.at [ "relatedTarget", "id" ] JD.string
 
         filteredItems =
-            menuItems config.search config.howMany items model.state
+            menuItems config_.search config_.howMany items model.state
 
         val =
-            inputValue config.toString items model.state
+            inputValue config_.toString items model.state
     in
     div []
         [ input
-            (List.map (mapNeverToMsg NoOp) config.input.attributes
-                ++ [ style config.input.style ]
+            (List.map (mapNeverToMsg NoOp) config_.input.attributes
+                ++ List.map (\( attr, attrVal ) -> style attr attrVal) config_.input.style
                 ++ [ onInput SetQuery
-                   , onWithOptions "keydown" preventDefault keyDecoder
+                   , preventDefaultOn "keydown" keyDecoder
                    , on "blur" hideMenuUnlessRelatedTarget
                    , value val
                    , autocomplete False
-                   , attribute "aria-owns" config.menuId
+                   , attribute "aria-owns" config_.menuId
                    , attribute "aria-expanded" <|
                         String.toLower <|
-                            toString <|
+                            boolToString <|
                                 Menu.visible model.menu
                    , attribute "aria-haspopup" <|
                         String.toLower <|
-                            toString <|
+                            boolToString <|
                                 Menu.visible model.menu
                    , attribute "role" "combobox"
                    , attribute "aria-autocomplete" "list"
@@ -442,8 +440,8 @@ findById id items =
 
 
 setSelecting : InternalState id -> id -> InternalState id
-setSelecting state id =
-    case state of
+setSelecting state_ id =
+    case state_ of
         Initial ->
             Selecting "" id
 
@@ -451,11 +449,11 @@ setSelecting state id =
             Selecting "" id
 
         -- should not be able to get here
-        Querying query ->
-            Selecting query id
+        Querying query_ ->
+            Selecting query_ id
 
-        Selecting query _ ->
-            Selecting query id
+        Selecting query_ _ ->
+            Selecting query_ id
 
 
 selectedItemText : (item -> String) -> List ( id, item ) -> id -> Maybe String
@@ -465,8 +463,8 @@ selectedItemText toString items id =
 
 
 inputValue : (item -> String) -> List ( id, item ) -> InternalState id -> String
-inputValue toString items state =
-    case state of
+inputValue toString items state_ =
+    case state_ of
         Initial ->
             ""
 
@@ -474,10 +472,10 @@ inputValue toString items state =
             selectedItemText toString items id
                 |> Maybe.withDefault ""
 
-        Querying query ->
-            query
+        Querying query_ ->
+            query_
 
-        Selecting query id ->
+        Selecting _ id ->
             selectedItemText toString items id
                 |> Maybe.withDefault ""
 
@@ -494,8 +492,8 @@ In a nutshell, this is what makes state management tricky in autocomplete.
 
 -}
 queryValue : (item -> String) -> List ( id, item ) -> InternalState id -> String
-queryValue toString items state =
-    case state of
+queryValue toString items state_ =
+    case state_ of
         Initial ->
             ""
 
@@ -503,27 +501,27 @@ queryValue toString items state =
             selectedItemText toString items id
                 |> Maybe.withDefault ""
 
-        Querying query ->
-            query
+        Querying query_ ->
+            query_
 
-        Selecting query id ->
-            query
+        Selecting query_ id ->
+            query_
 
 
 menuItems : (String -> item -> Bool) -> Int -> List ( id, item ) -> InternalState id -> List ( id, item )
-menuItems search howMany items state =
-    case state of
+menuItems search howMany items state_ =
+    case state_ of
         Initial ->
             []
 
         Preselecting id ->
             []
 
-        Querying query ->
-            searchItems search query items |> List.take howMany
+        Querying query_ ->
+            searchItems search query_ items |> List.take howMany
 
-        Selecting query _ ->
-            searchItems search query items |> List.take howMany
+        Selecting query_ _ ->
+            searchItems search query_ items |> List.take howMany
 
 
 
