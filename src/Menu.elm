@@ -1,32 +1,32 @@
-module Menu
-    exposing
-        ( Model
-        , Config
-        , init
-        , empty
-        , visible
-        , Msg(..)
-        , update
-        , view
-        , config
-        , defaultConfig
-        , menu
-        , menuItem
-        , menuStyle
-        , menuAttributes
-        , defaultMenuStyle
-        )
+module Menu exposing
+    ( Config
+    , Model
+    , Msg(..)
+    , config
+    , defaultConfig
+    , defaultMenuStyle
+    , empty
+    , init
+    , menu
+    , menuAttributes
+    , menuItem
+    , menuStyle
+    , update
+    , view
+    , visible
+    )
 
-import String
+import Helpers exposing (HtmlDetails, mapNeverToMsg, nullAttribute)
+import Html exposing (..)
+import Html.Attributes exposing (..)
+import Html.Events exposing (onBlur, onClick)
+import Html.Keyed
+import Json.Encode as JE
 import List
 import Maybe
 import Result
-import Json.Encode as JE
-import Html exposing (..)
-import Html.Attributes exposing (..)
-import Html.Keyed
-import Html.Events exposing (onClick, onBlur)
-import Helpers exposing (nullAttribute, mapNeverToMsg, HtmlDetails)
+import String
+
 
 
 -- MODEL
@@ -36,16 +36,17 @@ type Model
     = Model { visible : Bool }
 
 
-type Config item
+type Config id item
     = Config
         { ul : HtmlDetails
         , li : Bool -> item -> HtmlDetails
+        , idToString : id -> String
         }
 
 
 init : Bool -> Model
-init visible =
-    Model { visible = visible }
+init visible_ =
+    Model { visible = visible_ }
 
 
 empty : Model
@@ -91,9 +92,9 @@ update items selected msg (Model model) =
                         Just id ->
                             List.map Tuple.first items |> selectPrev id |> Maybe.withDefault id |> Just
             in
-                ( Model { model | visible = (List.isEmpty items |> not) }
-                , newselected
-                )
+            ( Model { model | visible = List.isEmpty items |> not }
+            , newselected
+            )
 
         SelectNextItem ->
             let
@@ -108,9 +109,9 @@ update items selected msg (Model model) =
                                 |> Maybe.withDefault id
                                 |> Just
             in
-                ( Model { model | visible = (List.isEmpty items |> not) }
-                , newselected
-                )
+            ( Model { model | visible = List.isEmpty items |> not }
+            , newselected
+            )
 
         SelectNone ->
             ( Model model, Nothing )
@@ -120,9 +121,9 @@ update items selected msg (Model model) =
                 newselected =
                     findById id items |> Maybe.map Tuple.first
             in
-                ( Model { model | visible = False }
-                , newselected
-                )
+            ( Model { model | visible = False }
+            , newselected
+            )
 
         ShowMenu ->
             ( Model { model | visible = True }, selected )
@@ -131,14 +132,14 @@ update items selected msg (Model model) =
             ( Model { model | visible = False }, selected )
 
         ShowOrHideMenu ->
-            ( Model { model | visible = (List.isEmpty items |> not) }, selected )
+            ( Model { model | visible = List.isEmpty items |> not }, selected )
 
         Reset ->
             let
                 ( newmodel, _ ) =
                     update items selected ShowOrHideMenu (Model model)
             in
-                ( newmodel, Nothing )
+            ( newmodel, Nothing )
 
         NoOp ->
             ( Model model, selected )
@@ -154,15 +155,16 @@ selectPrev id ids =
 
                 Err (Just id_) ->
                     if id_ == id then
-                        (Ok cur)
+                        Ok cur
+
                     else
-                        (Err (Just cur))
+                        Err (Just cur)
 
                 Ok id_ ->
                     Ok id_
     in
-        List.foldr getPrev (Err Nothing) ids
-            |> Result.toMaybe
+    List.foldr getPrev (Err Nothing) ids
+        |> Result.toMaybe
 
 
 selectNext : id -> List id -> Maybe id
@@ -177,8 +179,9 @@ findById id items =
             Nothing
 
         first :: rest ->
-            if (Tuple.first first) == id then
+            if Tuple.first first == id then
                 Just first
+
             else
                 findById id rest
 
@@ -187,90 +190,92 @@ findById id items =
 -- VIEW
 
 
-view : Config item -> Maybe id -> List ( id, item ) -> Model -> Html (Msg id)
-view (Config config) selected items (Model model) =
+view : Config id item -> Maybe id -> List ( id, item ) -> Model -> Html (Msg id)
+view (Config config_) selected items (Model model) =
     let
         viewItemWithKey ( id, item ) =
-            ( toString id
-            , viewItem (Config config) selected ( id, item ) (Model model)
+            ( config_.idToString id
+            , viewItem (Config config_) selected ( id, item ) (Model model)
             )
 
         viewMenu =
             Html.Keyed.ul
-                (List.map (mapNeverToMsg NoOp) config.ul.attributes
-                    ++ [ style config.ul.style ]
+                (List.map (mapNeverToMsg NoOp) config_.ul.attributes
+                    ++ List.map (\( attr, val ) -> style attr val) config_.ul.style
                     ++ [ tabindex 0
                        , onBlur HideMenu
                        ]
                 )
                 (List.map viewItemWithKey items)
     in
-        if model.visible then
-            viewMenu
-        else
-            (text "")
+    if model.visible then
+        viewMenu
+
+    else
+        text ""
 
 
-viewItem : Config item -> Maybe id -> ( id, item ) -> Model -> Html (Msg id)
-viewItem (Config config) selected ( id, item ) (Model model) =
+viewItem : Config id item -> Maybe id -> ( id, item ) -> Model -> Html (Msg id)
+viewItem (Config config_) selected ( id, item ) (Model model) =
     let
         listItemData =
-            config.li (isSelected selected) item
+            config_.li (isSelected selected) item
 
         isSelected =
             Maybe.map (\id_ -> id == id_)
                 >> Maybe.withDefault False
     in
-        Html.li
-            (List.map (mapNeverToMsg NoOp) listItemData.attributes
-                ++ [ style listItemData.style ]
-                ++ [ onClick (SelectItem id) ]
-            )
-            (List.map (Html.map (\_ -> NoOp)) listItemData.children)
+    Html.li
+        (List.map (mapNeverToMsg NoOp) listItemData.attributes
+            ++ List.map (\( attr, val ) -> style attr val) listItemData.style
+            ++ [ onClick (SelectItem id) ]
+        )
+        (List.map (Html.map (\_ -> NoOp)) listItemData.children)
 
 
 
 -- CONFIG
 
 
-config : { ul : HtmlDetails, li : Bool -> item -> HtmlDetails } -> Config item
+config : { ul : HtmlDetails, li : Bool -> item -> HtmlDetails, idToString : id -> String } -> Config id item
 config c =
     Config c
 
 
-menuItem : (Bool -> item -> HtmlDetails) -> Config item -> Config item
+menuItem : (Bool -> item -> HtmlDetails) -> Config id item -> Config id item
 menuItem fn (Config c) =
     Config { c | li = fn }
 
 
-menu : HtmlDetails -> Config item -> Config item
+menu : HtmlDetails -> Config id item -> Config id item
 menu details (Config c) =
     Config { c | ul = details }
 
 
-menuAttributes : List (Html.Attribute Never) -> Config item -> Config item
+menuAttributes : List (Html.Attribute Never) -> Config id item -> Config id item
 menuAttributes attrs (Config c) =
     let
         setAttrs details =
             { details | attributes = attrs }
     in
-        Config { c | ul = setAttrs c.ul }
+    Config { c | ul = setAttrs c.ul }
 
 
-menuStyle : List ( String, String ) -> Config item -> Config item
+menuStyle : List ( String, String ) -> Config id item -> Config id item
 menuStyle styles (Config c) =
     let
         setStyle details =
             { details | style = styles }
     in
-        Config { c | ul = setStyle c.ul }
+    Config { c | ul = setStyle c.ul }
 
 
-defaultConfig : Config item
-defaultConfig =
+defaultConfig : (id -> String) -> (item -> String) -> Config id item
+defaultConfig idToString itemToString =
     config
         { ul = { attributes = [], style = minimalMenuStyle, children = [] }
-        , li = minimalMenuItem
+        , li = minimalMenuItem itemToString
+        , idToString = idToString
         }
 
 
@@ -283,11 +288,11 @@ minimalMenuStyle =
     ]
 
 
-minimalMenuItem : Bool -> item -> HtmlDetails
-minimalMenuItem selected item =
+minimalMenuItem : (item -> String) -> Bool -> item -> HtmlDetails
+minimalMenuItem itemToString selected item =
     { attributes = []
     , style = []
-    , children = [ text (toString item) ]
+    , children = [ text (itemToString item) ]
     }
 
 

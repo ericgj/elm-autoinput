@@ -1,16 +1,17 @@
-module Demo exposing (..)
+module Demo exposing (Model, Msg(..), config, encode, init, main, searchConfig, update, view)
 
-import Json.Encode
+import Autoinput exposing (State(..))
+import Browser exposing (sandbox)
 import Html exposing (..)
 import Html.Attributes exposing (style)
-import Trees exposing (ID, encodeID, Tree, trees)
-import Autoinput exposing (State(..))
+import Json.Encode
+import Trees exposing (ID, Tree, encodeID, trees)
 
 
-main : Program Never Model Msg
+main : Program () Model Msg
 main =
-    beginnerProgram
-        { model = init
+    sandbox
+        { init = init
         , view = view
         , update = update
         }
@@ -24,33 +25,37 @@ init : Model
 init =
     Autoinput.preselect 5
 
-{- 
 
-   An example of how you might use Autoinput.state : encoding autocomplete 
+
+{-
+
+   An example of how you might use Autoinput.state : encoding autocomplete
    models for external storage.
 
 -}
+
+
 encode : Model -> Json.Encode.Value
 encode model =
-    Autoinput.state model |>
-        (\state ->
-            case state of
-                NoInput ->
-                    Json.Encode.object
-                        [ ("constructor", Json.Encode.string "NoInput") ]
-                
-                Entered query ->
-                    Json.Encode.object
-                        [ ("constructor", Json.Encode.string "Entered")
-                        , ("query", Json.Encode.string query)
-                        ]
+    Autoinput.state model
+        |> (\state ->
+                case state of
+                    NoInput ->
+                        Json.Encode.object
+                            [ ( "constructor", Json.Encode.string "NoInput" ) ]
 
-                Selected id ->
-                    Json.Encode.object
-                        [ ("constructor", Json.Encode.string "Selected")
-                        , ("id", encodeID id)
-                        ]
-        )
+                    Entered query ->
+                        Json.Encode.object
+                            [ ( "constructor", Json.Encode.string "Entered" )
+                            , ( "query", Json.Encode.string query )
+                            ]
+
+                    Selected id ->
+                        Json.Encode.object
+                            [ ( "constructor", Json.Encode.string "Selected" )
+                            , ( "id", encodeID id )
+                            ]
+           )
 
 
 type Msg
@@ -67,36 +72,37 @@ update msg model =
 view : Model -> Html Msg
 view model =
     div []
-      [ div [ style [("display", "inline-block"), ("width","300px")] ]
-        [ label [] [ text "Select the tree species" ]
-        , Autoinput.view config trees model |> Html.map UpdateAutoInput
+        [ div [ style "display" "inline-block", style "width" "300px" ]
+            [ label [] [ text "Select the tree species" ]
+            , Autoinput.view config trees model |> Html.map UpdateAutoInput
+            ]
+        , div [ style "display" "inline-block", style "width" "300px" ]
+            [ pre [ style "color" "red" ]
+                [ text <| Debug.toString <| Autoinput.state model
+                ]
+            ]
         ]
-      , div [ style [("display", "inline-block"), ("width","300px")] ]
-        [ pre [ style [("color", "red")] ]
-          [ text <| toString <| (Autoinput.state model)
-          ]
-        ]
-      ]
 
 
 
 -- CONSTANTS
 
 
-config : Autoinput.Config Tree
+config : Autoinput.Config Int Tree
 config =
     Autoinput.config
         { howMany = 10
         , search = searchConfig
-        , toString = (\item -> item.commonName ++ " (" ++ item.scientificName ++ ")")
+        , toString = \item -> item.commonName ++ " (" ++ item.scientificName ++ ")"
+        , idToString = String.fromInt
         , menuId = "tree-menu"
         , menuItemStyle =
-            (\selected ->
+            \selected ->
                 if selected then
                     [ ( "background-color", "yellow" ) ]
+
                 else
                     []
-            )
         }
 
 
@@ -105,4 +111,3 @@ searchConfig q tree =
     tree.commonName
         |> String.toLower
         |> String.contains (String.toLower q)
-
